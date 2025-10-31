@@ -12,6 +12,41 @@ Image Docker basée sur Debian Slim pour automatiser les backups de bases de don
 - Rotation automatique des anciens backups
 - Support de multiples bases de données simultanément
 - Logs centralisés
+- Build automatique via GitHub Actions
+- Images multi-architecture (amd64, arm64)
+
+## Installation rapide
+
+### Utiliser l'image pré-buildée depuis GitHub Container Registry
+
+Si ce projet est hébergé sur GitHub, vous pouvez utiliser l'image directement sans avoir à la construire :
+
+```bash
+docker pull ghcr.io/greite/database-backup:latest
+```
+
+Exemple de docker-compose.yml utilisant l'image pré-buildée :
+
+```yaml
+version: '3.8'
+
+services:
+  db-backup:
+    image: ghcr.io/greite/database-backup:latest
+    container_name: db-backup
+    restart: unless-stopped
+    volumes:
+      - ./backups:/backups
+      - ./backups.conf:/config/backups.conf:ro
+    networks:
+      - db-network
+```
+
+### Tags disponibles
+
+- `latest` - Dernière version stable de la branche principale
+- `main-<sha>` - Version spécifique basée sur un commit
+- `v1.0.0` - Version taggée (si vous créez des releases)
 
 ## Structure du projet
 
@@ -21,6 +56,10 @@ Image Docker basée sur Debian Slim pour automatiser les backups de bases de don
 ├── docker-compose.yml          # Exemple avec bases de données de test
 ├── backups.conf                # Configuration des backups
 ├── backups.conf.example        # Exemple de configuration
+├── GITHUB_SETUP.md            # Guide de configuration GitHub Actions
+├── .github/
+│   └── workflows/
+│       └── docker-build.yml   # Workflow de build automatique
 ├── scripts/
 │   ├── backup.sh              # Script de backup principal
 │   └── entrypoint.sh          # Script d'initialisation
@@ -294,6 +333,64 @@ Modifiez `scripts/backup.sh` pour envoyer des notifications par email ou webhook
 ### Changer le format de compression
 
 Remplacez `gzip` par `bzip2` ou `xz` dans `scripts/backup.sh` pour une meilleure compression.
+
+## CI/CD avec GitHub Actions
+
+Ce projet inclut un workflow GitHub Actions (`.github/workflows/docker-build.yml`) qui build et publie automatiquement l'image Docker sur GitHub Container Registry.
+
+### Déclenchement du build
+
+Le workflow se déclenche automatiquement sur :
+- Push sur la branche `main` ou `master`
+- Création d'un tag (ex: `v1.0.0`)
+- Pull requests
+- Déclenchement manuel via l'interface GitHub
+
+### Configuration requise
+
+1. **Activer GitHub Container Registry** : Aucune configuration nécessaire, c'est activé par défaut pour tous les repositories GitHub.
+
+2. **Rendre l'image publique** (optionnel) :
+   - Allez sur `https://github.com/users/VOTRE_USERNAME/packages/container/REPO_NAME/settings`
+   - Changez la visibilité de "Private" à "Public"
+
+### Créer une release
+
+Pour créer une nouvelle version taggée :
+
+```bash
+git tag -a v1.0.0 -m "Release version 1.0.0"
+git push origin v1.0.0
+```
+
+Cela créera automatiquement les tags Docker suivants :
+- `ghcr.io/username/repository:v1.0.0`
+- `ghcr.io/username/repository:1.0`
+- `ghcr.io/username/repository:1`
+- `ghcr.io/username/repository:latest`
+
+### Vérifier le build
+
+1. Allez dans l'onglet "Actions" de votre repository GitHub
+2. Sélectionnez le workflow "Build and Push Docker Image"
+3. Vérifiez que le build a réussi
+4. L'image sera disponible dans la section "Packages" de votre repository
+
+### Utiliser l'image buildée
+
+Une fois l'image publiée, remplacez dans votre `docker-compose.yml` :
+
+```yaml
+# Avant (build local)
+services:
+  db-backup:
+    build: .
+
+# Après (utiliser l'image pré-buildée)
+services:
+  db-backup:
+    image: ghcr.io/username/repository:latest
+```
 
 ## Licence
 

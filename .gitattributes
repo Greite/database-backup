@@ -1,0 +1,2 @@
+# Assurer que les scripts shell ont les bonnes fins de ligne (LF)
+*.sh text eol=lf
