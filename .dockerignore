@@ -1,0 +1,7 @@
+backups/
+*.md
+.git/
+.gitignore
+docker-compose.yml
+backups.conf
+backups.conf.example

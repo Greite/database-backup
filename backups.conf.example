@@ -1,0 +1,35 @@
+# Configuration des backups de bases de données
+#
+# Format: CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS
+#
+# Champs:
+#   - CRON_SCHEDULE: Expression cron (ex: "0 2 * * *" pour tous les jours à 2h du matin)
+#   - TYPE: "postgres" ou "mariadb" (ou "mysql")
+#   - HOST: Nom d'hôte ou IP de la base de données
+#   - PORT: Port de connexion (optionnel, défaut: 5432 pour postgres, 3306 pour mariadb)
+#   - DATABASE: Nom de la base de données à sauvegarder
+#   - USER: Utilisateur de connexion
+#   - PASSWORD: Mot de passe de connexion
+#   - RETENTION_DAYS: Nombre de jours de rétention des backups (optionnel, défaut: 7)
+#
+# Notes:
+#   - Les lignes vides et les commentaires (#) sont ignorés
+#   - Utilisez des pipes (|) pour séparer les champs
+#   - Les mots de passe peuvent contenir des caractères spéciaux
+
+# Exemple: Backup PostgreSQL tous les jours à 2h du matin, conserver 14 jours
+0 2 * * *|postgres|postgres-server|5432|myapp_db|backup_user|SecurePassword123|14
+
+# Exemple: Backup MariaDB tous les jours à 3h du matin, conserver 7 jours (défaut)
+0 3 * * *|mariadb|mariadb-server|3306|wordpress|wp_backup|MyS3cretP@ss|7
+
+# Exemple: Backup PostgreSQL toutes les 6 heures, conserver 3 jours
+0 */6 * * *|postgres|pg-production|5432|ecommerce|pg_admin|P@ssw0rd!|3
+
+# Exemple: Backup MariaDB tous les dimanches à minuit, conserver 30 jours
+0 0 * * 0|mariadb|db.example.com|3306|analytics|readonly_user|backup123|30
+
+# Exemple: Backup multiple databases sur le même serveur
+0 4 * * *|postgres|localhost|5432|database1|dbuser|password1|10
+0 4 * * *|postgres|localhost|5432|database2|dbuser|password2|10
+0 4 * * *|postgres|localhost|5432|database3|dbuser|password3|10

@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Service de backup automatique
+  db-backup:
+    build: .
+    container_name: db-backup
+    restart: unless-stopped
+    volumes:
+      # Volume pour stocker les backups
+      - ./backups:/backups
+      # Volume pour le fichier de configuration
+      - ./backups.conf:/config/backups.conf:ro
+    networks:
+      - db-network
+    depends_on:
+      - postgres-db
+      - mariadb-db
+
+  # Exemple de base de données PostgreSQL
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: myapp_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - db-network
+    ports:
+      - "5432:5432"
+
+  # Exemple de base de données MariaDB
+  mariadb-db:
+    image: mariadb:11
+    container_name: mariadb-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp_user
+      MYSQL_PASSWORD: wp_password
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      - db-network
+    ports:
+      - "3306:3306"
+
+volumes:
+  postgres-data:
+  mariadb-data:
+
+networks:
+  db-network:
+    driver: bridge

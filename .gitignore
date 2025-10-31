@@ -1,0 +1,8 @@
+# Backups
+backups/
+
+# Configuration avec mots de passe
+backups.conf
+
+# Logs
+*.log
