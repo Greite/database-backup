@@ -7,15 +7,24 @@ RUN apt-get update && apt-get install -y \
     mariadb-client \
     gzip \
     wget \
-    gnupg \
+    curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Installation de MongoDB Database Tools
-RUN wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | apt-key add - \
-    && echo "deb http://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list \
-    && apt-get update \
-    && apt-get install -y mongodb-database-tools \
-    && rm -rf /var/lib/apt/lists/*
+# Installation de MongoDB Database Tools (via tarball pour support multi-arch)
+RUN ARCH=$(uname -m) && \
+    MONGO_TOOLS_VERSION="100.10.0" && \
+    case "${ARCH}" in \
+        x86_64) MONGO_ARCH="x86_64" ;; \
+        aarch64) MONGO_ARCH="arm64" ;; \
+        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
+    esac && \
+    echo "Installing MongoDB Database Tools ${MONGO_TOOLS_VERSION} for ${ARCH}..." && \
+    wget -q "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-${MONGO_ARCH}-${MONGO_TOOLS_VERSION}.tgz" -O /tmp/mongodb-tools.tgz && \
+    tar -xzf /tmp/mongodb-tools.tgz -C /tmp && \
+    cp /tmp/mongodb-database-tools-*/bin/* /usr/local/bin/ && \
+    rm -rf /tmp/mongodb-tools.tgz /tmp/mongodb-database-tools-* && \
+    mongodump --version
 
 # Création des répertoires de travail
 RUN mkdir -p /backups /scripts /config
