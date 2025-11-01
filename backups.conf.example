@@ -4,12 +4,12 @@
 #
 # Champs:
 #   - CRON_SCHEDULE: Expression cron (ex: "0 2 * * *" pour tous les jours à 2h du matin)
-#   - TYPE: "postgres" ou "mariadb" (ou "mysql")
+#   - TYPE: "postgres", "mariadb" (ou "mysql"), ou "mongodb"
 #   - HOST: Nom d'hôte ou IP de la base de données
-#   - PORT: Port de connexion (optionnel, défaut: 5432 pour postgres, 3306 pour mariadb)
+#   - PORT: Port de connexion (optionnel, défaut: 5432 pour postgres, 3306 pour mariadb, 27017 pour mongodb)
 #   - DATABASE: Nom de la base de données à sauvegarder
-#   - USER: Utilisateur de connexion
-#   - PASSWORD: Mot de passe de connexion
+#   - USER: Utilisateur de connexion (optionnel pour MongoDB sans auth)
+#   - PASSWORD: Mot de passe de connexion (optionnel pour MongoDB sans auth)
 #   - RETENTION_DAYS: Nombre de jours de rétention des backups (optionnel, défaut: 7)
 #
 # Notes:
@@ -37,3 +37,9 @@
 
 # Exemple: Mot de passe avec caractères spéciaux (!@#$%^&*)
 0 5 * * *|mariadb|secure-db|3306|production|admin|ZxirfRuipZPHPc^#V#HFpCpRyrQ!zG5W|30
+
+# Exemple: Backup MongoDB avec authentification
+0 6 * * *|mongodb|mongo-server|27017|ecommerce|dbadmin|MongoP@ss123|14
+
+# Exemple: Backup MongoDB sans authentification (pour dev/test)
+0 6 * * *|mongodb|localhost|27017|test_db|||7

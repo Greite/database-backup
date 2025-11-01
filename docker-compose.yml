@@ -16,6 +16,7 @@ services:
     depends_on:
       - postgres-db
       - mariadb-db
+      - mongodb-db
 
   # Exemple de base de données PostgreSQL
   postgres-db:
@@ -50,9 +51,26 @@ services:
     ports:
       - "3306:3306"
 
+  # Exemple de base de données MongoDB
+  mongodb-db:
+    image: mongo:7
+    container_name: mongodb-db
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: mongo_password
+      MONGO_INITDB_DATABASE: myapp
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - db-network
+    ports:
+      - "27017:27017"
+
 volumes:
   postgres-data:
   mariadb-data:
+  mongodb-data:
 
 networks:
   db-network:

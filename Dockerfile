@@ -6,6 +6,15 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     mariadb-client \
     gzip \
+    wget \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installation de MongoDB Database Tools
+RUN wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | apt-key add - \
+    && echo "deb http://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list \
+    && apt-get update \
+    && apt-get install -y mongodb-database-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # Création des répertoires de travail

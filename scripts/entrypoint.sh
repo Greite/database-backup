@@ -38,7 +38,22 @@ while IFS= read -r line || [ -n "$line" ]; do
     fi
 
     # Utiliser les valeurs par défaut si non spécifiées
-    PORT=${PORT:-$([ "$TYPE" = "postgres" ] && echo "5432" || echo "3306")}
+    if [ -z "$PORT" ]; then
+        case "$TYPE" in
+            postgres)
+                PORT="5432"
+                ;;
+            mariadb|mysql)
+                PORT="3306"
+                ;;
+            mongodb)
+                PORT="27017"
+                ;;
+            *)
+                PORT="5432"
+                ;;
+        esac
+    fi
     RETENTION_DAYS=${RETENTION_DAYS:-7}
 
     # Échapper correctement le mot de passe pour bash

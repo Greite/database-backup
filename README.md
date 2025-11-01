@@ -1,10 +1,10 @@
 # Database Backup Container
 
-Image Docker basée sur Debian Slim pour automatiser les backups de bases de données PostgreSQL et MariaDB/MySQL via cron.
+Image Docker basée sur Debian Slim pour automatiser les backups de bases de données PostgreSQL, MariaDB/MySQL et MongoDB via cron.
 
 ## Fonctionnalités
 
-- Support de PostgreSQL et MariaDB/MySQL
+- Support de PostgreSQL, MariaDB/MySQL et MongoDB
 - Configuration flexible via fichier de configuration
 - Planification des backups avec cron
 - Compression automatique des dumps (gzip)
@@ -83,12 +83,12 @@ CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS
 **Champs :**
 
 - `CRON_SCHEDULE` : Expression cron standard (ex: `0 2 * * *` pour 2h du matin chaque jour)
-- `TYPE` : Type de base de données (`postgres` ou `mariadb` ou `mysql`)
+- `TYPE` : Type de base de données (`postgres`, `mariadb`, `mysql`, ou `mongodb`)
 - `HOST` : Nom d'hôte ou adresse IP du serveur de base de données
-- `PORT` : Port de connexion (optionnel, par défaut 5432 pour postgres, 3306 pour mariadb)
+- `PORT` : Port de connexion (optionnel, par défaut 5432 pour postgres, 3306 pour mariadb, 27017 pour mongodb)
 - `DATABASE` : Nom de la base de données à sauvegarder
-- `USER` : Utilisateur de connexion à la base de données
-- `PASSWORD` : Mot de passe de connexion (les caractères spéciaux sont supportés)
+- `USER` : Utilisateur de connexion à la base de données (optionnel pour MongoDB sans auth)
+- `PASSWORD` : Mot de passe de connexion (les caractères spéciaux sont supportés, optionnel pour MongoDB sans auth)
 - `RETENTION_DAYS` : Nombre de jours de rétention (optionnel, par défaut 7)
 
 **Note importante sur les mots de passe :**
@@ -111,6 +111,12 @@ Les mots de passe avec caractères spéciaux (`!`, `@`, `#`, `$`, `%`, `^`, `&`,
 
 # Exemple avec un mot de passe contenant des caractères spéciaux
 0 4 * * *|postgres|pg-prod|5432|webapp|admin|ZxirfRuipZPHPc^#V#HFpCpRyrQ!zG5W|14
+
+# Backup MongoDB avec authentification
+0 5 * * *|mongodb|mongo-prod|27017|ecommerce|dbadmin|SecureM0ng0!|14
+
+# Backup MongoDB sans authentification (environnement dev/test)
+0 5 * * *|mongodb|localhost|27017|test_db|||7
 ```
 
 ### Expressions Cron courantes
@@ -177,6 +183,7 @@ docker logs -f db-backup
 ```bash
 ls -lh backups/postgres/myapp_db/
 ls -lh backups/mariadb/wordpress/
+ls -lh backups/mongodb/ecommerce/
 ```
 
 ### Structure des fichiers de backup
@@ -190,12 +197,19 @@ backups/
 │       ├── myapp_db_20250131_020000.sql.gz
 │       ├── myapp_db_20250130_020000.sql.gz
 │       └── ...
-└── mariadb/
-    └── wordpress/
-        ├── wordpress_20250131_030000.sql.gz
-        ├── wordpress_20250130_030000.sql.gz
+├── mariadb/
+│   └── wordpress/
+│       ├── wordpress_20250131_030000.sql.gz
+│       ├── wordpress_20250130_030000.sql.gz
+│       └── ...
+└── mongodb/
+    └── ecommerce/
+        ├── ecommerce_20250131_050000.tar.gz
+        ├── ecommerce_20250130_050000.tar.gz
         └── ...
 ```
+
+**Note :** Les backups MongoDB sont au format `.tar.gz` (archive BSON compressée), tandis que PostgreSQL et MariaDB utilisent `.sql.gz` (dump SQL compressé).
 
 ### Restaurer un backup
 
@@ -215,10 +229,28 @@ gunzip -c backups/mariadb/wordpress/wordpress_20250131_030000.sql.gz | \
   mysql -h localhost -u root -p wordpress
 ```
 
+**MongoDB :**
+
+```bash
+# Extraire l'archive et restaurer
+mkdir -p /tmp/mongo_restore
+tar -xzf backups/mongodb/ecommerce/ecommerce_20250131_050000.tar.gz -C /tmp/mongo_restore
+
+# Restaurer la base de données
+mongorestore --uri="mongodb://admin:password@localhost:27017/ecommerce?authSource=admin" \
+  --gzip \
+  --drop \
+  /tmp/mongo_restore/ecommerce
+
+# Nettoyer
+rm -rf /tmp/mongo_restore
+```
+
 ### Tester un backup manuellement
 
 Vous pouvez exécuter un backup manuellement sans attendre le cron :
 
+**PostgreSQL :**
 ```bash
 docker exec db-backup /scripts/backup.sh \
   postgres \
@@ -228,6 +260,30 @@ docker exec db-backup /scripts/backup.sh \
   postgres \
   postgres_password \
   14
+```
+
+**MariaDB :**
+```bash
+docker exec db-backup /scripts/backup.sh \
+  mariadb \
+  mariadb-db \
+  3306 \
+  wordpress \
+  wp_user \
+  wp_password \
+  7
+```
+
+**MongoDB :**
+```bash
+docker exec db-backup /scripts/backup.sh \
+  mongodb \
+  mongodb-db \
+  27017 \
+  myapp \
+  admin \
+  mongo_password \
+  7
 ```
 
 ## Sécurité
@@ -243,6 +299,7 @@ Le système gère automatiquement les mots de passe complexes contenant tous typ
 **Fonctionnement :**
 - Pour **PostgreSQL** : utilise la variable d'environnement `PGPASSWORD` (méthode sécurisée recommandée)
 - Pour **MariaDB/MySQL** : utilise la variable d'environnement `MYSQL_PWD` (évite l'exposition en ligne de commande)
+- Pour **MongoDB** : utilise l'URI de connexion avec authentification intégrée (password URL-encodé automatiquement)
 - Les mots de passe sont automatiquement échappés avec `printf %q` pour être passés en toute sécurité à travers le système cron
 
 ### Bonnes pratiques
@@ -268,6 +325,20 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO backup_user;
 CREATE USER 'backup_user'@'%' IDENTIFIED BY 'secure_password';
 GRANT SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER ON myapp_db.* TO 'backup_user'@'%';
 FLUSH PRIVILEGES;
+```
+
+**MongoDB :**
+```javascript
+// Se connecter à MongoDB et créer un utilisateur backup
+use admin
+db.createUser({
+  user: "backup_user",
+  pwd: "secure_password",
+  roles: [
+    { role: "backup", db: "admin" },
+    { role: "read", db: "myapp" }
+  ]
+})
 ```
 
 3. **Stockage des backups** : Considérez de monter un volume chiffré pour `/backups`
@@ -328,6 +399,10 @@ docker exec db-backup psql -h postgres-db -U postgres -d myapp_db -c "SELECT 1"
 # MariaDB
 docker exec db-backup mysqldump --version
 docker exec db-backup mysql -h mariadb-db -u wp_user -p'wp_password' -e "SELECT 1"
+
+# MongoDB
+docker exec db-backup mongodump --version
+docker exec db-backup mongosh "mongodb://admin:mongo_password@mongodb-db:27017/myapp?authSource=admin" --eval "db.runCommand({ping: 1})"
 ```
 
 ### Les anciens backups ne sont pas supprimés
