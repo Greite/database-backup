@@ -15,7 +15,8 @@
 # Notes:
 #   - Les lignes vides et les commentaires (#) sont ignorés
 #   - Utilisez des pipes (|) pour séparer les champs
-#   - Les mots de passe peuvent contenir des caractères spéciaux
+#   - Les mots de passe peuvent contenir des caractères spéciaux (!@#$%^&*() etc.)
+#   - Aucun échappement nécessaire, le système gère automatiquement les caractères spéciaux
 
 # Exemple: Backup PostgreSQL tous les jours à 2h du matin, conserver 14 jours
 0 2 * * *|postgres|postgres-server|5432|myapp_db|backup_user|SecurePassword123|14
@@ -33,3 +34,6 @@
 0 4 * * *|postgres|localhost|5432|database1|dbuser|password1|10
 0 4 * * *|postgres|localhost|5432|database2|dbuser|password2|10
 0 4 * * *|postgres|localhost|5432|database3|dbuser|password3|10
+
+# Exemple: Mot de passe avec caractères spéciaux (!@#$%^&*)
+0 5 * * *|mariadb|secure-db|3306|production|admin|ZxirfRuipZPHPc^#V#HFpCpRyrQ!zG5W|30

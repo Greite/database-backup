@@ -41,8 +41,12 @@ while IFS= read -r line || [ -n "$line" ]; do
     PORT=${PORT:-$([ "$TYPE" = "postgres" ] && echo "5432" || echo "3306")}
     RETENTION_DAYS=${RETENTION_DAYS:-7}
 
+    # Échapper correctement le mot de passe pour bash
+    # printf %q échappe tous les caractères spéciaux
+    ESCAPED_PASSWORD=$(printf %q "$PASSWORD")
+
     # Ajouter l'entrée cron
-    echo "${CRON_SCHEDULE} root /scripts/backup.sh \"${TYPE}\" \"${HOST}\" \"${PORT}\" \"${DATABASE}\" \"${USER}\" \"${PASSWORD}\" \"${RETENTION_DAYS}\" >> /var/log/cron.log 2>&1" >> "${CRONTAB_FILE}"
+    echo "${CRON_SCHEDULE} root /scripts/backup.sh \"${TYPE}\" \"${HOST}\" \"${PORT}\" \"${DATABASE}\" \"${USER}\" ${ESCAPED_PASSWORD} \"${RETENTION_DAYS}\" >> /var/log/cron.log 2>&1" >> "${CRONTAB_FILE}"
 
     echo "  ✓ Configured ${TYPE} backup for database '${DATABASE}' on ${HOST}:${PORT} (schedule: ${CRON_SCHEDULE}, retention: ${RETENTION_DAYS} days)"
 done < "${CONFIG_FILE}"

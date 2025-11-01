@@ -30,7 +30,10 @@ if [ "${TYPE}" = "postgres" ]; then
     unset PGPASSWORD
 
 elif [ "${TYPE}" = "mariadb" ] || [ "${TYPE}" = "mysql" ]; then
-    mysqldump -h "${HOST}" -P "${PORT}" -u "${USER}" -p"${PASSWORD}" "${DATABASE}" > "${BACKUP_FILE}"
+    # Utiliser MYSQL_PWD pour éviter les problèmes avec les caractères spéciaux
+    export MYSQL_PWD="${PASSWORD}"
+    mysqldump -h "${HOST}" -P "${PORT}" -u "${USER}" "${DATABASE}" > "${BACKUP_FILE}"
+    unset MYSQL_PWD
 
 else
     echo "Error: Unknown database type: ${TYPE}"

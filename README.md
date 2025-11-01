@@ -88,8 +88,11 @@ CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS
 - `PORT` : Port de connexion (optionnel, par défaut 5432 pour postgres, 3306 pour mariadb)
 - `DATABASE` : Nom de la base de données à sauvegarder
 - `USER` : Utilisateur de connexion à la base de données
-- `PASSWORD` : Mot de passe de connexion
+- `PASSWORD` : Mot de passe de connexion (les caractères spéciaux sont supportés)
 - `RETENTION_DAYS` : Nombre de jours de rétention (optionnel, par défaut 7)
+
+**Note importante sur les mots de passe :**
+Les mots de passe avec caractères spéciaux (`!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, etc.) sont entièrement supportés. Le système échappe automatiquement tous les caractères spéciaux. Vous n'avez pas besoin d'échapper ou de mettre des guillemets autour de votre mot de passe dans le fichier de configuration.
 
 **Exemples :**
 
@@ -105,6 +108,9 @@ CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS
 
 # Backup tous les dimanches à minuit, conserver 30 jours
 0 0 * * 0|mariadb|db.example.com||analytics|readonly|secret|30
+
+# Exemple avec un mot de passe contenant des caractères spéciaux
+0 4 * * *|postgres|pg-prod|5432|webapp|admin|ZxirfRuipZPHPc^#V#HFpCpRyrQ!zG5W|14
 ```
 
 ### Expressions Cron courantes
@@ -225,6 +231,19 @@ docker exec db-backup /scripts/backup.sh \
 ```
 
 ## Sécurité
+
+### Gestion des mots de passe
+
+**Support des caractères spéciaux :**
+Le système gère automatiquement les mots de passe complexes contenant tous types de caractères spéciaux :
+- Symboles : `!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `(`, `)`, `-`, `_`, `+`, `=`
+- Espaces (bien que déconseillés)
+- Caractères Unicode
+
+**Fonctionnement :**
+- Pour **PostgreSQL** : utilise la variable d'environnement `PGPASSWORD` (méthode sécurisée recommandée)
+- Pour **MariaDB/MySQL** : utilise la variable d'environnement `MYSQL_PWD` (évite l'exposition en ligne de commande)
+- Les mots de passe sont automatiquement échappés avec `printf %q` pour être passés en toute sécurité à travers le système cron
 
 ### Bonnes pratiques
 
