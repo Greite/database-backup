@@ -32,8 +32,14 @@ while IFS= read -r line || [ -n "$line" ]; do
     IFS='|' read -r CRON_SCHEDULE TYPE HOST PORT DATABASE USER PASSWORD RETENTION_DAYS <<< "$line"
 
     # Valider les champs obligatoires
-    if [ -z "$CRON_SCHEDULE" ] || [ -z "$TYPE" ] || [ -z "$HOST" ] || [ -z "$DATABASE" ] || [ -z "$USER" ]; then
+    if [ -z "$CRON_SCHEDULE" ] || [ -z "$TYPE" ] || [ -z "$HOST" ] || [ -z "$DATABASE" ]; then
         echo "Warning: Invalid configuration line, skipping: $line"
+        continue
+    fi
+
+    # Pour PostgreSQL et MariaDB/MySQL, l'utilisateur est obligatoire
+    if [ "$TYPE" != "mongodb" ] && [ -z "$USER" ]; then
+        echo "Warning: USER is required for $TYPE, skipping: $line"
         continue
     fi
 
