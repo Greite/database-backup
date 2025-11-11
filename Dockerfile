@@ -1,14 +1,30 @@
-FROM debian:stable-slim
+FROM debian:trixie-slim
 
 # Installation des dépendances nécessaires
 RUN apt-get update && apt-get install -y \
     cron \
-    postgresql-client \
     mariadb-client \
     gzip \
     wget \
     curl \
     ca-certificates \
+    gnupg \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installation de plusieurs versions de PostgreSQL client depuis le repository officiel
+RUN mkdir -p /etc/apt/keyrings && \
+    wget --quiet -O /etc/apt/keyrings/postgresql.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
+    sh -c 'echo "deb [signed-by=/etc/apt/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && \
+    apt-get update && \
+    apt-get install -y \
+        postgresql-client-12 \
+        postgresql-client-13 \
+        postgresql-client-14 \
+        postgresql-client-15 \
+        postgresql-client-16 \
+        postgresql-client-17 \
+        postgresql-client-18 \
     && rm -rf /var/lib/apt/lists/*
 
 # Installation de MongoDB Database Tools (via tarball pour support multi-arch)

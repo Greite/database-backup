@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script de backup pour PostgreSQL, MariaDB et MongoDB
-# Usage: backup.sh <type> <host> <port> <database> <user> <password> [retention_days]
+# Usage: backup.sh <type> <host> <port> <database> <user> <password> [retention_days] [pg_version]
 
 set -e
 
@@ -12,6 +12,7 @@ DATABASE=$4
 USER=$5
 PASSWORD=$6
 RETENTION_DAYS=${7:-7}  # Par défaut, conserver 7 jours de backups
+PG_VERSION=${8:-18}      # Par défaut, utiliser PostgreSQL 18
 
 BACKUP_DIR="/backups/${TYPE}/${DATABASE}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -33,7 +34,21 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting backup of ${TYPE} database: ${DATA
 # Effectuer le backup selon le type de base de données
 if [ "${TYPE}" = "postgres" ]; then
     export PGPASSWORD="${PASSWORD}"
-    pg_dump -h "${HOST}" -p "${PORT}" -U "${USER}" -d "${DATABASE}" > "${BACKUP_FILE}"
+
+    # Utiliser la version spécifique de pg_dump
+    PG_DUMP_PATH="/usr/lib/postgresql/${PG_VERSION}/bin/pg_dump"
+
+    # Vérifier que la version demandée est installée
+    if [ ! -x "${PG_DUMP_PATH}" ]; then
+        echo "Error: PostgreSQL ${PG_VERSION} client is not installed"
+        echo "Available versions:"
+        ls -1 /usr/lib/postgresql/ 2>/dev/null || echo "No PostgreSQL clients found"
+        unset PGPASSWORD
+        exit 1
+    fi
+
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Using PostgreSQL client version ${PG_VERSION}"
+    "${PG_DUMP_PATH}" -h "${HOST}" -p "${PORT}" -U "${USER}" -d "${DATABASE}" > "${BACKUP_FILE}"
     unset PGPASSWORD
 
 elif [ "${TYPE}" = "mariadb" ] || [ "${TYPE}" = "mysql" ]; then

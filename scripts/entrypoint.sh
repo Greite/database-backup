@@ -28,8 +28,8 @@ while IFS= read -r line || [ -n "$line" ]; do
     [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
 
     # Parser la ligne de configuration
-    # Format attendu: CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS
-    IFS='|' read -r CRON_SCHEDULE TYPE HOST PORT DATABASE USER PASSWORD RETENTION_DAYS <<< "$line"
+    # Format attendu: CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS|PG_VERSION
+    IFS='|' read -r CRON_SCHEDULE TYPE HOST PORT DATABASE USER PASSWORD RETENTION_DAYS PG_VERSION <<< "$line"
 
     # Valider les champs obligatoires
     if [ -z "$CRON_SCHEDULE" ] || [ -z "$TYPE" ] || [ -z "$HOST" ] || [ -z "$DATABASE" ]; then
@@ -62,14 +62,23 @@ while IFS= read -r line || [ -n "$line" ]; do
     fi
     RETENTION_DAYS=${RETENTION_DAYS:-7}
 
+    # Pour PostgreSQL, définir la version par défaut si non spécifiée
+    if [ "$TYPE" = "postgres" ]; then
+        PG_VERSION=${PG_VERSION:-18}
+    fi
+
     # Échapper correctement le mot de passe pour bash
     # printf %q échappe tous les caractères spéciaux
     ESCAPED_PASSWORD=$(printf %q "$PASSWORD")
 
     # Ajouter l'entrée cron
-    echo "${CRON_SCHEDULE} root /scripts/backup.sh \"${TYPE}\" \"${HOST}\" \"${PORT}\" \"${DATABASE}\" \"${USER}\" ${ESCAPED_PASSWORD} \"${RETENTION_DAYS}\" >> /var/log/cron.log 2>&1" >> "${CRONTAB_FILE}"
-
-    echo "  ✓ Configured ${TYPE} backup for database '${DATABASE}' on ${HOST}:${PORT} (schedule: ${CRON_SCHEDULE}, retention: ${RETENTION_DAYS} days)"
+    if [ "$TYPE" = "postgres" ]; then
+        echo "${CRON_SCHEDULE} root /scripts/backup.sh \"${TYPE}\" \"${HOST}\" \"${PORT}\" \"${DATABASE}\" \"${USER}\" ${ESCAPED_PASSWORD} \"${RETENTION_DAYS}\" \"${PG_VERSION}\" >> /var/log/cron.log 2>&1" >> "${CRONTAB_FILE}"
+        echo "  ✓ Configured ${TYPE} backup for database '${DATABASE}' on ${HOST}:${PORT} (schedule: ${CRON_SCHEDULE}, retention: ${RETENTION_DAYS} days, PG version: ${PG_VERSION})"
+    else
+        echo "${CRON_SCHEDULE} root /scripts/backup.sh \"${TYPE}\" \"${HOST}\" \"${PORT}\" \"${DATABASE}\" \"${USER}\" ${ESCAPED_PASSWORD} \"${RETENTION_DAYS}\" >> /var/log/cron.log 2>&1" >> "${CRONTAB_FILE}"
+        echo "  ✓ Configured ${TYPE} backup for database '${DATABASE}' on ${HOST}:${PORT} (schedule: ${CRON_SCHEDULE}, retention: ${RETENTION_DAYS} days)"
+    fi
 done < "${CONFIG_FILE}"
 
 # Ajouter une ligne vide à la fin du crontab (requis par cron)
