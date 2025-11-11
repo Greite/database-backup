@@ -4,7 +4,8 @@ Image Docker basée sur Debian Slim pour automatiser les backups de bases de don
 
 ## Fonctionnalités
 
-- Support de PostgreSQL, MariaDB/MySQL et MongoDB
+- Support de PostgreSQL (versions 12 à 18), MariaDB/MySQL et MongoDB
+- Support de multiples versions de PostgreSQL simultanément
 - Configuration flexible via fichier de configuration
 - Planification des backups avec cron
 - Compression automatique des dumps (gzip)
@@ -77,7 +78,7 @@ services:
 Le fichier `backups.conf` définit les backups à effectuer. Chaque ligne représente un backup avec le format suivant :
 
 ```
-CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS
+CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS|PG_VERSION
 ```
 
 **Champs :**
@@ -90,6 +91,7 @@ CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS
 - `USER` : Utilisateur de connexion à la base de données (optionnel pour MongoDB sans auth)
 - `PASSWORD` : Mot de passe de connexion (les caractères spéciaux sont supportés, optionnel pour MongoDB sans auth)
 - `RETENTION_DAYS` : Nombre de jours de rétention (optionnel, par défaut 7)
+- `PG_VERSION` : Version du client PostgreSQL à utiliser - **uniquement pour PostgreSQL** (optionnel, valeurs possibles: 12, 13, 14, 15, 16, 17, 18, par défaut 18)
 
 **Note importante sur les mots de passe :**
 Les mots de passe avec caractères spéciaux (`!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, etc.) sont entièrement supportés. Le système échappe automatiquement tous les caractères spéciaux. Vous n'avez pas besoin d'échapper ou de mettre des guillemets autour de votre mot de passe dans le fichier de configuration.
@@ -97,20 +99,26 @@ Les mots de passe avec caractères spéciaux (`!`, `@`, `#`, `$`, `%`, `^`, `&`,
 **Exemples :**
 
 ```conf
-# Backup PostgreSQL tous les jours à 2h, conserver 14 jours
-0 2 * * *|postgres|db-server|5432|myapp|backup_user|SecureP@ss|14
+# Backup PostgreSQL 18 tous les jours à 2h, conserver 14 jours
+0 2 * * *|postgres|db-server|5432|myapp|backup_user|SecureP@ss|14|18
+
+# Backup PostgreSQL 15 (serveur legacy) tous les jours à 2h30, conserver 14 jours
+0 2 30 * * *|postgres|pg-old-server|5432|legacy_app|backup_user|SecureP@ss|14|15
+
+# Backup PostgreSQL sans spécifier la version (utilise v18 par défaut)
+0 3 * * *|postgres|pg-new|5432|modern_app|dbuser|pass123|7
 
 # Backup MariaDB tous les jours à 3h, conserver 7 jours
 0 3 * * *|mariadb|mysql-server|3306|wordpress|wp_backup|MyPassword|7
 
 # Backup toutes les 6 heures, conserver 3 jours
-0 */6 * * *|postgres|localhost|5432|ecommerce|dbuser|pass123|3
+0 */6 * * *|postgres|localhost|5432|ecommerce|dbuser|pass123|3|18
 
 # Backup tous les dimanches à minuit, conserver 30 jours
 0 0 * * 0|mariadb|db.example.com||analytics|readonly|secret|30
 
 # Exemple avec un mot de passe contenant des caractères spéciaux
-0 4 * * *|postgres|pg-prod|5432|webapp|admin|ZxirfRuipZPHPc^#V#HFpCpRyrQ!zG5W|14
+0 4 * * *|postgres|pg-prod|5432|webapp|admin|ZxirfRuipZPHPc^#V#HFpCpRyrQ!zG5W|14|18
 
 # Backup MongoDB avec authentification
 0 5 * * *|mongodb|mongo-prod|27017|ecommerce|dbadmin|SecureM0ng0!|14
@@ -118,6 +126,12 @@ Les mots de passe avec caractères spéciaux (`!`, `@`, `#`, `$`, `%`, `^`, `&`,
 # Backup MongoDB sans authentification (environnement dev/test)
 0 5 * * *|mongodb|localhost|27017|test_db|||7
 ```
+
+**Notes sur la version PostgreSQL :**
+- Le champ `PG_VERSION` n'est utilisé que pour les backups PostgreSQL
+- Si omis, la version 18 est utilisée par défaut
+- Cela permet de sauvegarder différentes versions de PostgreSQL avec le même conteneur
+- Les versions supportées sont : 12, 13, 14, 15, 16, 17, 18
 
 ### Expressions Cron courantes
 
@@ -250,7 +264,7 @@ rm -rf /tmp/mongo_restore
 
 Vous pouvez exécuter un backup manuellement sans attendre le cron :
 
-**PostgreSQL :**
+**PostgreSQL 18 :**
 ```bash
 docker exec db-backup /scripts/backup.sh \
   postgres \
@@ -259,7 +273,21 @@ docker exec db-backup /scripts/backup.sh \
   myapp_db \
   postgres \
   postgres_password \
-  14
+  14 \
+  18
+```
+
+**PostgreSQL 15 (ou autre version) :**
+```bash
+docker exec db-backup /scripts/backup.sh \
+  postgres \
+  postgres-db \
+  5432 \
+  myapp_db \
+  postgres \
+  postgres_password \
+  14 \
+  15
 ```
 
 **MariaDB :**
@@ -392,9 +420,16 @@ docker exec db-backup ps aux | grep cron
 3. Testez la connexion à la base de données :
 
 ```bash
-# PostgreSQL
-docker exec db-backup pg_dump --version
-docker exec db-backup psql -h postgres-db -U postgres -d myapp_db -c "SELECT 1"
+# PostgreSQL - Vérifier les versions installées
+docker exec db-backup ls -la /usr/lib/postgresql/
+
+# PostgreSQL 18
+docker exec db-backup /usr/lib/postgresql/18/bin/pg_dump --version
+docker exec db-backup /usr/lib/postgresql/18/bin/psql -h postgres-db -U postgres -d myapp_db -c "SELECT 1"
+
+# PostgreSQL 15 (ou autre version)
+docker exec db-backup /usr/lib/postgresql/15/bin/pg_dump --version
+docker exec db-backup /usr/lib/postgresql/15/bin/psql -h postgres-db -U postgres -d myapp_db -c "SELECT 1"
 
 # MariaDB
 docker exec db-backup mysqldump --version
