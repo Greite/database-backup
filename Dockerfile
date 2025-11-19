@@ -48,15 +48,20 @@ RUN mkdir -p /backups /scripts /config
 # Copie des scripts
 COPY scripts/backup.sh /scripts/backup.sh
 COPY scripts/entrypoint.sh /scripts/entrypoint.sh
+COPY scripts/healthcheck.sh /scripts/healthcheck.sh
 
 # Rendre les scripts exécutables
-RUN chmod +x /scripts/backup.sh /scripts/entrypoint.sh
+RUN chmod +x /scripts/backup.sh /scripts/entrypoint.sh /scripts/healthcheck.sh
 
 # Création d'un fichier de log pour cron
 RUN touch /var/log/cron.log
 
 # Volume pour les backups
 VOLUME ["/backups", "/config"]
+
+# Healthcheck pour vérifier la connectivité aux bases de données
+HEALTHCHECK --interval=5m --timeout=30s --start-period=30s --retries=3 \
+    CMD ["/scripts/healthcheck.sh"]
 
 # Définir l'entrypoint
 ENTRYPOINT ["/scripts/entrypoint.sh"]

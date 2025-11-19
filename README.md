@@ -12,6 +12,7 @@ Image Docker basée sur Debian Slim pour automatiser les backups de bases de don
 - Horodatage des fichiers de backup
 - Rotation automatique des anciens backups
 - Support de multiples bases de données simultanément
+- Healthcheck intégré vérifiant la connectivité aux bases de données
 - Logs centralisés
 - Build automatique via GitHub Actions
 - Images multi-architecture (amd64, arm64)
@@ -26,7 +27,7 @@ Si ce projet est hébergé sur GitHub, vous pouvez utiliser l'image directement 
 docker pull ghcr.io/greite/database-backup:latest
 ```
 
-Exemple de docker-compose.yml utilisant l'image pré-buildée :
+Exemple de compose.yml utilisant l'image pré-buildée :
 
 ```yaml
 version: '3.8'
@@ -54,7 +55,7 @@ services:
 ```
 .
 ├── Dockerfile
-├── docker-compose.yml          # Exemple avec bases de données de test
+├── compose.yml          # Exemple avec bases de données de test
 ├── backups.conf                # Configuration des backups
 ├── backups.conf.example        # Exemple de configuration
 ├── GITHUB_SETUP.md            # Guide de configuration GitHub Actions
@@ -63,7 +64,8 @@ services:
 │       └── docker-build.yml   # Workflow de build automatique
 ├── scripts/
 │   ├── backup.sh              # Script de backup principal
-│   └── entrypoint.sh          # Script d'initialisation
+│   ├── entrypoint.sh          # Script d'initialisation
+│   └── healthcheck.sh         # Script de healthcheck
 └── backups/                    # Répertoire des backups (créé automatiquement)
     ├── postgres/
     │   └── myapp_db/
@@ -381,6 +383,29 @@ db.createUser({
 docker-compose ps
 ```
 
+Le conteneur inclut un healthcheck qui vérifie automatiquement :
+- Que le daemon cron est en cours d'exécution
+- Que toutes les bases de données configurées sont accessibles
+- Que les connexions utilisent la bonne version du client PostgreSQL
+
+Le healthcheck s'exécute toutes les 5 minutes avec un timeout de 30 secondes. L'état du healthcheck est visible avec :
+
+```bash
+docker inspect --format='{{.State.Health.Status}}' db-backup
+```
+
+Pour voir les détails du dernier healthcheck :
+
+```bash
+docker inspect --format='{{json .State.Health}}' db-backup | jq
+```
+
+Pour exécuter manuellement le healthcheck :
+
+```bash
+docker exec db-backup /scripts/healthcheck.sh
+```
+
 ### Consulter les logs en temps réel
 
 ```bash
@@ -507,7 +532,7 @@ Cela créera automatiquement les tags Docker suivants :
 
 ### Utiliser l'image buildée
 
-Une fois l'image publiée, remplacez dans votre `docker-compose.yml` :
+Une fois l'image publiée, remplacez dans votre `compose.yml` :
 
 ```yaml
 # Avant (build local)
