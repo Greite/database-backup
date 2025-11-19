@@ -28,9 +28,10 @@ RUN mkdir -p /etc/apt/keyrings && \
         postgresql-client-18 \
     && rm -rf /var/lib/apt/lists/*
 
-# Installation de MongoDB Database Tools (via tarball pour support multi-arch)
+# Installation de MongoDB Database Tools et MongoDB Shell (via tarball pour support multi-arch)
 RUN ARCH=$(uname -m) && \
     MONGO_TOOLS_VERSION="100.10.0" && \
+    MONGOSH_VERSION="2.3.7" && \
     case "${ARCH}" in \
         x86_64) MONGO_ARCH="x86_64" ;; \
         aarch64) MONGO_ARCH="arm64" ;; \
@@ -41,7 +42,13 @@ RUN ARCH=$(uname -m) && \
     tar -xzf /tmp/mongodb-tools.tgz -C /tmp && \
     cp /tmp/mongodb-database-tools-*/bin/* /usr/local/bin/ && \
     rm -rf /tmp/mongodb-tools.tgz /tmp/mongodb-database-tools-* && \
-    mongodump --version
+    mongodump --version && \
+    echo "Installing MongoDB Shell ${MONGOSH_VERSION} for ${ARCH}..." && \
+    wget -q "https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${MONGO_ARCH}.tgz" -O /tmp/mongosh.tgz && \
+    tar -xzf /tmp/mongosh.tgz -C /tmp && \
+    cp /tmp/mongosh-*/bin/mongosh /usr/local/bin/ && \
+    rm -rf /tmp/mongosh.tgz /tmp/mongosh-* && \
+    mongosh --version
 
 # Création des répertoires de travail
 RUN mkdir -p /backups /scripts /config
