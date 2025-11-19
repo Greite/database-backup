@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg \
     lsb-release \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Installation de plusieurs versions de PostgreSQL client depuis le repository officiel
