@@ -5,7 +5,8 @@ Image Docker basée sur Debian Slim pour automatiser les backups de bases de don
 ## Fonctionnalités
 
 - Support de PostgreSQL (versions 12 à 18), MariaDB/MySQL et MongoDB
-- Support de multiples versions de PostgreSQL simultanément
+- Installation dynamique des clients au démarrage (seuls les outils nécessaires sont installés selon la config)
+- Image légère : aucun client de base de données pré-installé
 - Configuration flexible via fichier de configuration
 - Planification des backups avec cron
 - Compression automatique des dumps (gzip)
@@ -134,6 +135,16 @@ Les mots de passe avec caractères spéciaux (`!`, `@`, `#`, `$`, `%`, `^`, `&`,
 - Si omis, la version 18 est utilisée par défaut
 - Cela permet de sauvegarder différentes versions de PostgreSQL avec le même conteneur
 - Les versions supportées sont : 12, 13, 14, 15, 16, 17, 18
+
+**Installation dynamique des clients de bases de données :**
+- **Aucun** client de base de données n'est pré-installé dans l'image Docker
+- Au démarrage, le conteneur analyse la configuration et installe uniquement les outils nécessaires :
+  - **PostgreSQL** : installe les versions spécifiques configurées (12-18)
+  - **MariaDB/MySQL** : installe `mariadb-client` si configuré
+  - **MongoDB** : installe `mongodump`, `mongorestore` et `mongosh` si configuré
+- Cela réduit significativement la taille de l'image de base
+- **Prérequis** : une connexion internet est nécessaire au premier démarrage du conteneur
+- Le premier démarrage peut prendre 30-90 secondes supplémentaires selon les clients à installer
 
 ### Expressions Cron courantes
 

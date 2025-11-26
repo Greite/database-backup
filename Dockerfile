@@ -1,9 +1,13 @@
 FROM debian:trixie-slim
 
-# Installation des dépendances nécessaires
+# Versions des outils MongoDB (utilisées pour l'installation dynamique)
+ENV MONGO_TOOLS_VERSION="100.10.0"
+ENV MONGOSH_VERSION="2.3.7"
+
+# Installation des dépendances de base uniquement
+# Les clients de bases de données seront installés au démarrage selon la configuration
 RUN apt-get update && apt-get install -y \
     cron \
-    mariadb-client \
     gzip \
     wget \
     curl \
@@ -13,43 +17,10 @@ RUN apt-get update && apt-get install -y \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Installation de plusieurs versions de PostgreSQL client depuis le repository officiel
+# Configuration du repository PostgreSQL (les clients seront installés au démarrage selon la config)
 RUN mkdir -p /etc/apt/keyrings && \
     wget --quiet -O /etc/apt/keyrings/postgresql.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
-    sh -c 'echo "deb [signed-by=/etc/apt/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list' && \
-    apt-get update && \
-    apt-get install -y \
-        postgresql-client-12 \
-        postgresql-client-13 \
-        postgresql-client-14 \
-        postgresql-client-15 \
-        postgresql-client-16 \
-        postgresql-client-17 \
-        postgresql-client-18 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Installation de MongoDB Database Tools et MongoDB Shell (via tarball pour support multi-arch)
-RUN ARCH=$(uname -m) && \
-    MONGO_TOOLS_VERSION="100.10.0" && \
-    MONGOSH_VERSION="2.3.7" && \
-    case "${ARCH}" in \
-        x86_64) MONGO_ARCH="x86_64"; MONGOSH_ARCH="x64" ;; \
-        aarch64) MONGO_ARCH="arm64"; MONGOSH_ARCH="arm64" ;; \
-        *) echo "Unsupported architecture: ${ARCH}" && exit 1 ;; \
-    esac && \
-    echo "Installing MongoDB Database Tools ${MONGO_TOOLS_VERSION} for ${ARCH}..." && \
-    wget -q "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-${MONGO_ARCH}-${MONGO_TOOLS_VERSION}.tgz" -O /tmp/mongodb-tools.tgz && \
-    tar -xzf /tmp/mongodb-tools.tgz -C /tmp && \
-    cp /tmp/mongodb-database-tools-*/bin/* /usr/local/bin/ && \
-    rm -rf /tmp/mongodb-tools.tgz /tmp/mongodb-database-tools-* && \
-    mongodump --version && \
-    echo "Installing MongoDB Shell ${MONGOSH_VERSION} for ${ARCH}..." && \
-    wget -q "https://downloads.mongodb.com/compass/mongosh-${MONGOSH_VERSION}-linux-${MONGOSH_ARCH}.tgz" -O /tmp/mongosh.tgz && \
-    tar -xzf /tmp/mongosh.tgz -C /tmp && \
-    cp /tmp/mongosh-${MONGOSH_VERSION}-linux-${MONGOSH_ARCH}/bin/mongosh /usr/local/bin/ && \
-    chmod +x /usr/local/bin/mongosh && \
-    rm -rf /tmp/mongosh.tgz /tmp/mongosh-* && \
-    mongosh --version
+    sh -c 'echo "deb [signed-by=/etc/apt/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 
 # Création des répertoires de travail
 RUN mkdir -p /backups /scripts /config
@@ -69,7 +40,8 @@ RUN touch /var/log/cron.log
 VOLUME ["/backups", "/config"]
 
 # Healthcheck pour vérifier la connectivité aux bases de données
-HEALTHCHECK --interval=5m --timeout=30s --start-period=30s --retries=3 \
+# start-period augmenté pour permettre l'installation des clients PostgreSQL au démarrage
+HEALTHCHECK --interval=5m --timeout=30s --start-period=5m --retries=3 \
     CMD ["/scripts/healthcheck.sh"]
 
 # Définir l'entrypoint
