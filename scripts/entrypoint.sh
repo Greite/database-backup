@@ -7,6 +7,15 @@ CRONTAB_FILE="/etc/cron.d/db-backups"
 
 echo "Starting Database Backup Container..."
 
+# Configuration de la timezone au runtime
+if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then
+    ln -snf "/usr/share/zoneinfo/$TZ" /etc/localtime
+    echo "$TZ" > /etc/timezone
+    echo "Timezone configured: $TZ"
+else
+    echo "Timezone: UTC (default)"
+fi
+
 # Vérifier si le fichier de configuration existe
 if [ ! -f "${CONFIG_FILE}" ]; then
     echo "Error: Configuration file not found at ${CONFIG_FILE}"
@@ -142,6 +151,10 @@ echo ""
 echo "# Database backup cron jobs" > "${CRONTAB_FILE}"
 echo "SHELL=/bin/bash" >> "${CRONTAB_FILE}"
 echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> "${CRONTAB_FILE}"
+# Passer la timezone à cron pour que les logs et timestamps soient corrects
+if [ -n "$TZ" ]; then
+    echo "TZ=${TZ}" >> "${CRONTAB_FILE}"
+fi
 echo "" >> "${CRONTAB_FILE}"
 
 # Lire le fichier de configuration et générer les entrées cron

@@ -4,6 +4,9 @@ services:
     build: .
     container_name: db-backup
     restart: unless-stopped
+    environment:
+      # Timezone pour les logs et les noms de fichiers de backup
+      - TZ=Europe/Paris
     volumes:
       # Volume pour stocker les backups
       - ./backups:/backups

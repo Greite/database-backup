@@ -4,6 +4,9 @@ FROM debian:trixie-slim
 ENV MONGO_TOOLS_VERSION="100.10.0"
 ENV MONGOSH_VERSION="2.3.7"
 
+# Timezone par défaut (peut être surchargée via variable d'environnement)
+ENV TZ=UTC
+
 # Installation des dépendances de base uniquement
 # Les clients de bases de données seront installés au démarrage selon la configuration
 RUN apt-get update && apt-get install -y \
@@ -15,7 +18,11 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     lsb-release \
     procps \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# Configuration de la timezone (utilise la variable TZ)
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Configuration du repository PostgreSQL (les clients seront installés au démarrage selon la config)
 RUN mkdir -p /etc/apt/keyrings && \
