@@ -66,9 +66,9 @@ jobs:
       - name: Summary
         run: |
           if [ "${{ steps.check.outputs.needs-updating }}" == "true" ]; then
-            echo "### Image rebuilt" >> "$GITHUB_SUMMARY"
-            echo "Base image \`debian:trixie-slim\` was updated." >> "$GITHUB_SUMMARY"
+            echo '### Image rebuilt' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Base image `debian:trixie-slim` was updated.' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### No rebuild needed" >> "$GITHUB_SUMMARY"
-            echo "Base image \`debian:trixie-slim\` is unchanged." >> "$GITHUB_SUMMARY"
+            echo '### No rebuild needed' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Base image `debian:trixie-slim` is unchanged.' >> "$GITHUB_STEP_SUMMARY"
           fi
