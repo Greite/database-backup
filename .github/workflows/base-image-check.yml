@@ -9,7 +9,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  BASE_IMAGE: debian:trixie-slim
 
 jobs:
   check-and-rebuild:
@@ -19,44 +18,32 @@ jobs:
       packages: write
 
     steps:
+      - name: Check if base image was updated
+        id: check
+        uses: lucacome/docker-image-update-checker@v2
+        with:
+          base-image: debian:trixie-slim
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          platforms: linux/amd64,linux/arm64
+
       - name: Checkout repository
+        if: steps.check.outputs.needs-updating == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
+        if: steps.check.outputs.needs-updating == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
+        if: steps.check.outputs.needs-updating == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check if base image was updated
-        id: check
-        run: |
-          # Pull latest base image and get its digest
-          docker pull ${{ env.BASE_IMAGE }}
-          BASE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.BASE_IMAGE }})
-          echo "base_digest=$BASE_DIGEST" >> "$GITHUB_OUTPUT"
-
-          # Try to get the digest stored in our last build
-          STORED_DIGEST=""
-          if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 2>/dev/null; then
-            STORED_DIGEST=$(docker inspect --format='{{index .Config.Labels "base.image.digest"}}' ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 2>/dev/null || echo "")
-          fi
-          echo "stored_digest=$STORED_DIGEST" >> "$GITHUB_OUTPUT"
-
-          if [ "$BASE_DIGEST" != "$STORED_DIGEST" ] || [ -z "$STORED_DIGEST" ]; then
-            echo "rebuild=true" >> "$GITHUB_OUTPUT"
-            echo "Base image changed: rebuilding"
-          else
-            echo "rebuild=false" >> "$GITHUB_OUTPUT"
-            echo "Base image unchanged: skipping rebuild"
-          fi
-
       - name: Extract metadata (tags, labels)
-        if: steps.check.outputs.rebuild == 'true'
+        if: steps.check.outputs.needs-updating == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -65,25 +52,23 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push Docker image
-        if: steps.check.outputs.rebuild == 'true'
+        if: steps.check.outputs.needs-updating == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: |
-            ${{ steps.meta.outputs.labels }}
-            base.image.digest=${{ steps.check.outputs.base_digest }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
 
       - name: Summary
         run: |
-          if [ "${{ steps.check.outputs.rebuild }}" == "true" ]; then
-            echo "### ✅ Image rebuilt" >> "$GITHUB_SUMMARY"
-            echo "Base image digest: \`${{ steps.check.outputs.base_digest }}\`" >> "$GITHUB_SUMMARY"
+          if [ "${{ steps.check.outputs.needs-updating }}" == "true" ]; then
+            echo "### Image rebuilt" >> "$GITHUB_SUMMARY"
+            echo "Base image \`debian:trixie-slim\` was updated." >> "$GITHUB_SUMMARY"
           else
-            echo "### ⏭️ No rebuild needed" >> "$GITHUB_SUMMARY"
-            echo "Base image digest unchanged: \`${{ steps.check.outputs.base_digest }}\`" >> "$GITHUB_SUMMARY"
+            echo "### No rebuild needed" >> "$GITHUB_SUMMARY"
+            echo "Base image \`debian:trixie-slim\` is unchanged." >> "$GITHUB_SUMMARY"
           fi
