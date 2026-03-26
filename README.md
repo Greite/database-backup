@@ -1,38 +1,39 @@
 # Database Backup Container
 
-Image Docker basée sur Debian Slim pour automatiser les backups de bases de données PostgreSQL, MariaDB/MySQL et MongoDB via cron.
+<p align="center">
+  <img src="database-backup-icon.png" alt="Database Backup" width="200">
+</p>
 
-## Fonctionnalités
+Lightweight Docker image based on Debian Slim to automate PostgreSQL, MariaDB/MySQL, and MongoDB database backups via cron.
 
-- Support de PostgreSQL (versions 12 à 18), MariaDB/MySQL et MongoDB
-- Installation dynamique des clients au démarrage (seuls les outils nécessaires sont installés selon la config)
-- Image légère : aucun client de base de données pré-installé
-- Configuration flexible via fichier de configuration
-- Planification des backups avec cron
-- Compression automatique des dumps (gzip)
-- Horodatage des fichiers de backup
-- Rotation automatique des anciens backups
-- Support de multiples bases de données simultanément
-- Healthcheck intégré vérifiant la connectivité aux bases de données
-- Logs centralisés
-- Build automatique via GitHub Actions
-- Images multi-architecture (amd64, arm64)
+## Features
 
-## Installation rapide
+- PostgreSQL (versions 12 to 18), MariaDB/MySQL, and MongoDB support
+- Dynamic client installation at startup (only required tools are installed based on config)
+- Lightweight image: no database clients pre-installed
+- Flexible configuration via a simple config file
+- Cron-based backup scheduling
+- Automatic dump compression (gzip)
+- Timestamped backup files
+- Automatic rotation of old backups
+- Multiple simultaneous database support
+- Built-in healthcheck verifying database connectivity
+- Centralized logging
+- Automated build via GitHub Actions
+- Multi-architecture images (amd64, arm64)
+- Automatic rebuild when the base image (`debian:trixie-slim`) is updated (4 times daily)
 
-### Utiliser l'image pré-buildée depuis GitHub Container Registry
+## Quick Start
 
-Si ce projet est hébergé sur GitHub, vous pouvez utiliser l'image directement sans avoir à la construire :
+### Using the pre-built image from GitHub Container Registry
 
 ```bash
 docker pull ghcr.io/greite/database-backup:latest
 ```
 
-Exemple de compose.yml utilisant l'image pré-buildée :
+Example `compose.yml` using the pre-built image:
 
 ```yaml
-version: '3.8'
-
 services:
   db-backup:
     image: ghcr.io/greite/database-backup:latest
@@ -45,149 +46,152 @@ services:
       - db-network
 ```
 
-### Tags disponibles
+### Available Tags
 
-- `latest` - Dernière version stable de la branche principale
-- `main-<sha>` - Version spécifique basée sur un commit
-- `v1.0.0` - Version taggée (si vous créez des releases)
+- `latest` — Latest stable version
+- `v1.0.0` — Tagged release version (semantic versioning: `v1.0.0`, `1.0`, `1`)
 
-## Structure du projet
+## Project Structure
 
 ```
 .
 ├── Dockerfile
-├── compose.yml          # Exemple avec bases de données de test
-├── backups.conf                # Configuration des backups
-├── backups.conf.example        # Exemple de configuration
-├── GITHUB_SETUP.md            # Guide de configuration GitHub Actions
+├── compose.yml                 # Example with test databases
+├── backups.conf                # Backup configuration
+├── backups.conf.example        # Configuration template
+├── GITHUB_SETUP.md             # GitHub Actions setup guide
 ├── .github/
 │   └── workflows/
-│       └── docker-build.yml   # Workflow de build automatique
+│       ├── docker-build.yml    # Build workflow on version tags
+│       └── base-image-check.yml # Scheduled rebuild on base image update
 ├── scripts/
-│   ├── backup.sh              # Script de backup principal
-│   ├── entrypoint.sh          # Script d'initialisation
-│   └── healthcheck.sh         # Script de healthcheck
-└── backups/                    # Répertoire des backups (créé automatiquement)
+│   ├── backup.sh               # Main backup script
+│   ├── entrypoint.sh           # Initialization script
+│   └── healthcheck.sh          # Healthcheck script
+└── backups/                    # Backup directory (created automatically)
     ├── postgres/
-    │   └── myapp_db/
-    └── mariadb/
-        └── wordpress/
+    ├── mariadb/
+    └── mongodb/
 ```
 
 ## Configuration
 
-### Format du fichier backups.conf
+### Config File Format (`backups.conf`)
 
-Le fichier `backups.conf` définit les backups à effectuer. Chaque ligne représente un backup avec le format suivant :
+Each line defines a backup job with pipe-delimited fields:
 
 ```
 CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS|PG_VERSION
 ```
 
-**Champs :**
+**Fields:**
 
-- `CRON_SCHEDULE` : Expression cron standard (ex: `0 2 * * *` pour 2h du matin chaque jour)
-- `TYPE` : Type de base de données (`postgres`, `mariadb`, `mysql`, ou `mongodb`)
-- `HOST` : Nom d'hôte ou adresse IP du serveur de base de données
-- `PORT` : Port de connexion (optionnel, par défaut 5432 pour postgres, 3306 pour mariadb, 27017 pour mongodb)
-- `DATABASE` : Nom de la base de données à sauvegarder
-- `USER` : Utilisateur de connexion à la base de données (optionnel pour MongoDB sans auth)
-- `PASSWORD` : Mot de passe de connexion (les caractères spéciaux sont supportés, optionnel pour MongoDB sans auth)
-- `RETENTION_DAYS` : Nombre de jours de rétention (optionnel, par défaut 7)
-- `PG_VERSION` : Version du client PostgreSQL à utiliser - **uniquement pour PostgreSQL** (optionnel, valeurs possibles: 12, 13, 14, 15, 16, 17, 18, par défaut 18)
+| Field | Description | Required | Default |
+|-------|-------------|----------|---------|
+| `CRON_SCHEDULE` | Standard cron expression (e.g., `0 2 * * *`) | Yes | — |
+| `TYPE` | Database type: `postgres`, `mariadb`, `mysql`, or `mongodb` | Yes | — |
+| `HOST` | Database server hostname or IP | Yes | — |
+| `PORT` | Connection port | No | 5432 / 3306 / 27017 |
+| `DATABASE` | Database name to back up | Yes | — |
+| `USER` | Database user | No* | — |
+| `PASSWORD` | Database password (special characters supported) | No* | — |
+| `RETENTION_DAYS` | Number of days to keep backups | No | 7 |
+| `PG_VERSION` | PostgreSQL client version (12–18), PostgreSQL only | No | 18 |
 
-**Note importante sur les mots de passe :**
-Les mots de passe avec caractères spéciaux (`!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, etc.) sont entièrement supportés. Le système échappe automatiquement tous les caractères spéciaux. Vous n'avez pas besoin d'échapper ou de mettre des guillemets autour de votre mot de passe dans le fichier de configuration.
+*Required for PostgreSQL/MariaDB; optional for MongoDB without authentication.
 
-**Exemples :**
+**Password handling:**
+Passwords with special characters (`!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, etc.) are fully supported. The system automatically escapes all special characters — no manual quoting needed in the config file.
+
+**Examples:**
 
 ```conf
-# Backup PostgreSQL 18 tous les jours à 2h, conserver 14 jours
+# PostgreSQL 18 daily at 2 AM, keep 14 days
 0 2 * * *|postgres|db-server|5432|myapp|backup_user|SecureP@ss|14|18
 
-# Backup PostgreSQL 15 (serveur legacy) tous les jours à 2h30, conserver 14 jours
+# PostgreSQL 15 (legacy server) daily at 2:30 AM, keep 14 days
 0 2 30 * * *|postgres|pg-old-server|5432|legacy_app|backup_user|SecureP@ss|14|15
 
-# Backup PostgreSQL sans spécifier la version (utilise v18 par défaut)
+# PostgreSQL without specifying version (defaults to v18)
 0 3 * * *|postgres|pg-new|5432|modern_app|dbuser|pass123|7
 
-# Backup MariaDB tous les jours à 3h, conserver 7 jours
+# MariaDB daily at 3 AM, keep 7 days
 0 3 * * *|mariadb|mysql-server|3306|wordpress|wp_backup|MyPassword|7
 
-# Backup toutes les 6 heures, conserver 3 jours
+# Every 6 hours, keep 3 days
 0 */6 * * *|postgres|localhost|5432|ecommerce|dbuser|pass123|3|18
 
-# Backup tous les dimanches à minuit, conserver 30 jours
+# Every Sunday at midnight, keep 30 days
 0 0 * * 0|mariadb|db.example.com||analytics|readonly|secret|30
 
-# Exemple avec un mot de passe contenant des caractères spéciaux
+# Password with special characters
 0 4 * * *|postgres|pg-prod|5432|webapp|admin|ZxirfRuipZPHPc^#V#HFpCpRyrQ!zG5W|14|18
 
-# Backup MongoDB avec authentification
+# MongoDB with authentication
 0 5 * * *|mongodb|mongo-prod|27017|ecommerce|dbadmin|SecureM0ng0!|14
 
-# Backup MongoDB sans authentification (environnement dev/test)
+# MongoDB without authentication (dev/test)
 0 5 * * *|mongodb|localhost|27017|test_db|||7
 ```
 
-**Notes sur la version PostgreSQL :**
-- Le champ `PG_VERSION` n'est utilisé que pour les backups PostgreSQL
-- Si omis, la version 18 est utilisée par défaut
-- Cela permet de sauvegarder différentes versions de PostgreSQL avec le même conteneur
-- Les versions supportées sont : 12, 13, 14, 15, 16, 17, 18
+**PostgreSQL version notes:**
+- The `PG_VERSION` field is only used for PostgreSQL backups
+- If omitted, version 18 is used by default
+- This allows backing up different PostgreSQL versions with the same container
+- Supported versions: 12, 13, 14, 15, 16, 17, 18
 
-**Installation dynamique des clients de bases de données :**
-- **Aucun** client de base de données n'est pré-installé dans l'image Docker
-- Au démarrage, le conteneur analyse la configuration et installe uniquement les outils nécessaires :
-  - **PostgreSQL** : installe les versions spécifiques configurées (12-18)
-  - **MariaDB/MySQL** : installe `mariadb-client` si configuré
-  - **MongoDB** : installe `mongodump`, `mongorestore` et `mongosh` si configuré
-- Cela réduit significativement la taille de l'image de base
-- **Prérequis** : une connexion internet est nécessaire au premier démarrage du conteneur
-- Le premier démarrage peut prendre 30-90 secondes supplémentaires selon les clients à installer
+**Dynamic client installation:**
+- **No** database client is pre-installed in the Docker image
+- At startup, the container parses the configuration and installs only the required tools:
+  - **PostgreSQL**: installs the specific configured versions (12–18)
+  - **MariaDB/MySQL**: installs `mariadb-client` if configured
+  - **MongoDB**: installs `mongodump`, `mongorestore`, and `mongosh` if configured
+- This significantly reduces the base image size
+- **Prerequisite**: internet access is required on first startup
+- First startup may take an extra 30–90 seconds depending on which clients need to be installed
 
-### Expressions Cron courantes
+### Common Cron Expressions
 
 ```
-0 2 * * *      # Tous les jours à 2h du matin
-0 */6 * * *    # Toutes les 6 heures
-0 0 * * 0      # Tous les dimanches à minuit
-30 1 * * *     # Tous les jours à 1h30
-0 0 1 * *      # Le 1er de chaque mois à minuit
+0 2 * * *      # Every day at 2 AM
+0 */6 * * *    # Every 6 hours
+0 0 * * 0      # Every Sunday at midnight
+30 1 * * *     # Every day at 1:30 AM
+0 0 1 * *      # First day of each month at midnight
 ```
 
-## Utilisation
+## Usage
 
-### Option 1 : Avec Docker Compose (recommandé)
+### Option 1: Docker Compose (recommended)
 
-1. Créez votre fichier `backups.conf` :
+1. Create your `backups.conf` file:
 
 ```bash
 cp backups.conf.example backups.conf
-# Éditez backups.conf avec vos paramètres
+# Edit backups.conf with your settings
 ```
 
-2. Lancez les services :
+2. Start the services:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-3. Vérifiez les logs :
+3. Check the logs:
 
 ```bash
-docker-compose logs -f db-backup
+docker compose logs -f db-backup
 ```
 
-### Option 2 : Docker run
+### Option 2: Docker Run
 
-1. Construisez l'image :
+1. Build the image:
 
 ```bash
 docker build -t db-backup .
 ```
 
-2. Lancez le container :
+2. Run the container:
 
 ```bash
 docker run -d \
@@ -197,15 +201,15 @@ docker run -d \
   db-backup
 ```
 
-3. Vérifiez les logs :
+3. Check the logs:
 
 ```bash
 docker logs -f db-backup
 ```
 
-## Gestion des backups
+## Managing Backups
 
-### Voir les backups créés
+### View created backups
 
 ```bash
 ls -lh backups/postgres/myapp_db/
@@ -213,9 +217,9 @@ ls -lh backups/mariadb/wordpress/
 ls -lh backups/mongodb/ecommerce/
 ```
 
-### Structure des fichiers de backup
+### Backup file structure
 
-Les backups sont organisés par type et base de données :
+Backups are organized by type and database:
 
 ```
 backups/
@@ -236,124 +240,93 @@ backups/
         └── ...
 ```
 
-**Note :** Les backups MongoDB sont au format `.tar.gz` (archive BSON compressée), tandis que PostgreSQL et MariaDB utilisent `.sql.gz` (dump SQL compressé).
+> **Note:** MongoDB backups use `.tar.gz` format (compressed BSON archive), while PostgreSQL and MariaDB use `.sql.gz` (compressed SQL dump).
 
-### Restaurer un backup
+### Restore a backup
 
-**PostgreSQL :**
+**PostgreSQL:**
 
 ```bash
-# Décompresser et restaurer
 gunzip -c backups/postgres/myapp_db/myapp_db_20250131_020000.sql.gz | \
   psql -h localhost -U postgres -d myapp_db
 ```
 
-**MariaDB :**
+**MariaDB:**
 
 ```bash
-# Décompresser et restaurer
 gunzip -c backups/mariadb/wordpress/wordpress_20250131_030000.sql.gz | \
   mysql -h localhost -u root -p wordpress
 ```
 
-**MongoDB :**
+**MongoDB:**
 
 ```bash
-# Extraire l'archive et restaurer
+# Extract the archive and restore
 mkdir -p /tmp/mongo_restore
 tar -xzf backups/mongodb/ecommerce/ecommerce_20250131_050000.tar.gz -C /tmp/mongo_restore
 
-# Restaurer la base de données
+# Restore the database
 mongorestore --uri="mongodb://admin:password@localhost:27017/ecommerce?authSource=admin" \
   --gzip \
   --drop \
   /tmp/mongo_restore/ecommerce
 
-# Nettoyer
+# Clean up
 rm -rf /tmp/mongo_restore
 ```
 
-### Tester un backup manuellement
+### Trigger a manual backup
 
-Vous pouvez exécuter un backup manuellement sans attendre le cron :
+You can run a backup manually without waiting for cron:
 
-**PostgreSQL 18 :**
+**PostgreSQL 18:**
 ```bash
 docker exec db-backup /scripts/backup.sh \
-  postgres \
-  postgres-db \
-  5432 \
-  myapp_db \
-  postgres \
-  postgres_password \
-  14 \
-  18
+  postgres db-server 5432 myapp_db postgres postgres_password 14 18
 ```
 
-**PostgreSQL 15 (ou autre version) :**
+**PostgreSQL 15 (or other version):**
 ```bash
 docker exec db-backup /scripts/backup.sh \
-  postgres \
-  postgres-db \
-  5432 \
-  myapp_db \
-  postgres \
-  postgres_password \
-  14 \
-  15
+  postgres db-server 5432 myapp_db postgres postgres_password 14 15
 ```
 
-**MariaDB :**
+**MariaDB:**
 ```bash
 docker exec db-backup /scripts/backup.sh \
-  mariadb \
-  mariadb-db \
-  3306 \
-  wordpress \
-  wp_user \
-  wp_password \
-  7
+  mariadb mariadb-db 3306 wordpress wp_user wp_password 7
 ```
 
-**MongoDB :**
+**MongoDB:**
 ```bash
 docker exec db-backup /scripts/backup.sh \
-  mongodb \
-  mongodb-db \
-  27017 \
-  myapp \
-  admin \
-  mongo_password \
-  7
+  mongodb mongodb-db 27017 myapp admin mongo_password 7
 ```
 
-## Sécurité
+## Security
 
-### Gestion des mots de passe
+### Password handling
 
-**Support des caractères spéciaux :**
-Le système gère automatiquement les mots de passe complexes contenant tous types de caractères spéciaux :
-- Symboles : `!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, `(`, `)`, `-`, `_`, `+`, `=`
-- Espaces (bien que déconseillés)
-- Caractères Unicode
+**Special character support:**
+The system automatically handles complex passwords containing all types of special characters: `!@#$%^&*()-_+=`, spaces, and Unicode characters.
 
-**Fonctionnement :**
-- Pour **PostgreSQL** : utilise la variable d'environnement `PGPASSWORD` (méthode sécurisée recommandée)
-- Pour **MariaDB/MySQL** : utilise la variable d'environnement `MYSQL_PWD` (évite l'exposition en ligne de commande)
-- Pour **MongoDB** : utilise l'URI de connexion avec authentification intégrée (password URL-encodé automatiquement)
-- Les mots de passe sont automatiquement échappés avec `printf %q` pour être passés en toute sécurité à travers le système cron
+**How it works:**
+- **PostgreSQL**: uses the `PGPASSWORD` environment variable (recommended secure method)
+- **MariaDB/MySQL**: uses the `MYSQL_PWD` environment variable (avoids command-line exposure)
+- **MongoDB**: uses the connection URI with built-in authentication (password is automatically URL-encoded)
+- Passwords are automatically escaped with `printf %q` for safe passage through the cron system
 
-### Bonnes pratiques
+### Best practices
 
-1. **Permissions des fichiers** : Assurez-vous que `backups.conf` a des permissions restrictives car il contient des mots de passe :
+1. **File permissions**: Ensure `backups.conf` has restrictive permissions since it contains passwords:
 
 ```bash
 chmod 600 backups.conf
 ```
 
-2. **Utilisateurs de backup dédiés** : Créez des utilisateurs avec privilèges minimaux pour les backups :
+2. **Dedicated backup users**: Create users with minimal privileges:
 
-**PostgreSQL :**
+**PostgreSQL:**
 ```sql
 CREATE USER backup_user WITH PASSWORD 'secure_password';
 GRANT CONNECT ON DATABASE myapp_db TO backup_user;
@@ -361,16 +334,15 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO backup_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO backup_user;
 ```
 
-**MariaDB :**
+**MariaDB:**
 ```sql
 CREATE USER 'backup_user'@'%' IDENTIFIED BY 'secure_password';
 GRANT SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER ON myapp_db.* TO 'backup_user'@'%';
 FLUSH PRIVILEGES;
 ```
 
-**MongoDB :**
+**MongoDB:**
 ```javascript
-// Se connecter à MongoDB et créer un utilisateur backup
 use admin
 db.createUser({
   user: "backup_user",
@@ -382,90 +354,86 @@ db.createUser({
 })
 ```
 
-3. **Stockage des backups** : Considérez de monter un volume chiffré pour `/backups`
+3. **Backup storage**: Consider mounting an encrypted volume for `/backups`
 
-4. **Backups externes** : Synchronisez régulièrement les backups vers un stockage externe (S3, NAS, etc.)
+4. **Off-site backups**: Regularly sync backups to external storage (S3, NAS, etc.)
 
 ## Monitoring
 
-### Vérifier l'état du service
+### Check service status
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
-Le conteneur inclut un healthcheck qui vérifie automatiquement :
-- Que le daemon cron est en cours d'exécution
-- Que toutes les bases de données configurées sont accessibles
-- Que les connexions utilisent la bonne version du client PostgreSQL
+The container includes a healthcheck that automatically verifies:
+- The cron daemon is running
+- All configured databases are reachable
+- Connections use the correct PostgreSQL client version
 
-Le healthcheck s'exécute toutes les 5 minutes avec un timeout de 30 secondes. L'état du healthcheck est visible avec :
+The healthcheck runs every 5 minutes with a 30-second timeout. View healthcheck status:
 
 ```bash
 docker inspect --format='{{.State.Health.Status}}' db-backup
 ```
 
-Pour voir les détails du dernier healthcheck :
+View last healthcheck details:
 
 ```bash
 docker inspect --format='{{json .State.Health}}' db-backup | jq
 ```
 
-Pour exécuter manuellement le healthcheck :
+Run the healthcheck manually:
 
 ```bash
 docker exec db-backup /scripts/healthcheck.sh
 ```
 
-### Consulter les logs en temps réel
+### View real-time logs
 
 ```bash
-docker-compose logs -f db-backup
+docker compose logs -f db-backup
 ```
 
-### Vérifier les derniers backups
+### Check recent backups
 
 ```bash
 find backups -name "*.sql.gz" -type f -mtime -1 -ls
 ```
 
-## Dépannage
+## Troubleshooting
 
-### Le container ne démarre pas
+### Container won't start
 
-Vérifiez que le fichier `backups.conf` existe :
+Check that the `backups.conf` file exists:
 
 ```bash
-docker-compose logs db-backup
+docker compose logs db-backup
 ```
 
-### Les backups ne s'exécutent pas
+### Backups aren't running
 
-1. Vérifiez la configuration cron :
+1. Check the cron configuration:
 
 ```bash
 docker exec db-backup cat /etc/cron.d/db-backups
 ```
 
-2. Vérifiez que cron est en cours d'exécution :
+2. Verify cron is running:
 
 ```bash
 docker exec db-backup ps aux | grep cron
 ```
 
-3. Testez la connexion à la base de données :
+3. Test database connectivity:
 
 ```bash
-# PostgreSQL - Vérifier les versions installées
+# PostgreSQL — check installed versions
 docker exec db-backup ls -la /usr/lib/postgresql/
 
 # PostgreSQL 18
 docker exec db-backup /usr/lib/postgresql/18/bin/pg_dump --version
 docker exec db-backup /usr/lib/postgresql/18/bin/psql -h postgres-db -U postgres -d myapp_db -c "SELECT 1"
-
-# PostgreSQL 15 (ou autre version)
-docker exec db-backup /usr/lib/postgresql/15/bin/pg_dump --version
-docker exec db-backup /usr/lib/postgresql/15/bin/psql -h postgres-db -U postgres -d myapp_db -c "SELECT 1"
 
 # MariaDB
 docker exec db-backup mysqldump --version
@@ -476,87 +444,64 @@ docker exec db-backup mongodump --version
 docker exec db-backup mongosh "mongodb://admin:mongo_password@mongodb-db:27017/myapp?authSource=admin" --eval "db.runCommand({ping: 1})"
 ```
 
-### Les anciens backups ne sont pas supprimés
+### Old backups aren't being deleted
 
-Vérifiez que `RETENTION_DAYS` est bien défini dans votre configuration et que la valeur est un nombre positif.
+Check that `RETENTION_DAYS` is properly set in your configuration and that the value is a positive number.
 
-## Personnalisation
+## Customization
 
-### Modifier le fuseau horaire
+### Change the timezone
 
-Ajoutez dans le Dockerfile :
+Set the `TZ` environment variable:
 
-```dockerfile
-ENV TZ=Europe/Paris
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+```yaml
+services:
+  db-backup:
+    image: ghcr.io/greite/database-backup:latest
+    environment:
+      - TZ=Europe/Paris
 ```
 
-### Ajouter des notifications
+### Add notifications
 
-Modifiez `scripts/backup.sh` pour envoyer des notifications par email ou webhook en cas de succès ou d'échec.
+Modify `scripts/backup.sh` to send email or webhook notifications on success or failure.
 
-### Changer le format de compression
+### Change compression format
 
-Remplacez `gzip` par `bzip2` ou `xz` dans `scripts/backup.sh` pour une meilleure compression.
+Replace `gzip` with `bzip2` or `xz` in `scripts/backup.sh` for better compression.
 
-## CI/CD avec GitHub Actions
+## CI/CD with GitHub Actions
 
-Ce projet inclut un workflow GitHub Actions (`.github/workflows/docker-build.yml`) qui build et publie automatiquement l'image Docker sur GitHub Container Registry.
+This project includes two GitHub Actions workflows:
 
-### Déclenchement du build
+### Release Build (`.github/workflows/docker-build.yml`)
 
-Le workflow se déclenche automatiquement sur :
-- Push sur la branche `main` ou `master`
-- Création d'un tag (ex: `v1.0.0`)
-- Pull requests
-- Déclenchement manuel via l'interface GitHub
+Triggered on version tags (`v*.*.*`) or manual dispatch. Builds and pushes the Docker image to GitHub Container Registry with semantic versioning tags.
 
-### Configuration requise
+### Base Image Update Check (`.github/workflows/base-image-check.yml`)
 
-1. **Activer GitHub Container Registry** : Aucune configuration nécessaire, c'est activé par défaut pour tous les repositories GitHub.
+Runs automatically **4 times daily** (at 00:00, 06:00, 12:00, and 18:00 UTC) to check if the `debian:trixie-slim` base image has been updated. If a new version is detected, it automatically rebuilds and pushes the image to keep it up to date with the latest security patches.
 
-2. **Rendre l'image publique** (optionnel) :
-   - Allez sur `https://github.com/users/VOTRE_USERNAME/packages/container/REPO_NAME/settings`
-   - Changez la visibilité de "Private" à "Public"
-
-### Créer une release
-
-Pour créer une nouvelle version taggée :
+### Creating a release
 
 ```bash
 git tag -a v1.0.0 -m "Release version 1.0.0"
 git push origin v1.0.0
 ```
 
-Cela créera automatiquement les tags Docker suivants :
-- `ghcr.io/username/repository:v1.0.0`
-- `ghcr.io/username/repository:1.0`
-- `ghcr.io/username/repository:1`
-- `ghcr.io/username/repository:latest`
+This automatically creates the following Docker tags:
+- `ghcr.io/greite/database-backup:v1.0.0`
+- `ghcr.io/greite/database-backup:1.0`
+- `ghcr.io/greite/database-backup:1`
+- `ghcr.io/greite/database-backup:latest`
 
-### Vérifier le build
+### Verify the build
 
-1. Allez dans l'onglet "Actions" de votre repository GitHub
-2. Sélectionnez le workflow "Build and Push Docker Image"
-3. Vérifiez que le build a réussi
-4. L'image sera disponible dans la section "Packages" de votre repository
+1. Go to the **Actions** tab of your GitHub repository
+2. Select the relevant workflow
+3. Verify the build succeeded
+4. The image will be available in the **Packages** section of your repository
 
-### Utiliser l'image buildée
+## License
 
-Une fois l'image publiée, remplacez dans votre `compose.yml` :
-
-```yaml
-# Avant (build local)
-services:
-  db-backup:
-    build: .
-
-# Après (utiliser l'image pré-buildée)
-services:
-  db-backup:
-    image: ghcr.io/username/repository:latest
-```
-
-## Licence
-
-MIT
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
