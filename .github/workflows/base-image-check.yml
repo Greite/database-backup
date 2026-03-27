@@ -2,8 +2,8 @@ name: Rebuild on Base Image Update
 
 on:
   schedule:
-    # Run 4 times daily at 00:00, 06:00, 12:00, and 18:00 UTC
-    - cron: '0 0,6,12,18 * * *'
+    # Run 4 times daily at 22:30, 04:30, 10:30, and 16:30 UTC
+    - cron: '30 22,4,10,16 * * *'
   workflow_dispatch:
 
 env:
