@@ -6,3 +6,6 @@ backups.conf
 
 # Logs
 *.log
+
+# macOS
+.DS_Store
