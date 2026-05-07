@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Maintainer>
+  <Icon>https://avatars.githubusercontent.com/u/32100821</Icon>
+  <Profile>Maintainer of database-backup, a lightweight Docker image to automate scheduled PostgreSQL, MariaDB/MySQL, and MongoDB dumps via cron.</Profile>
+  <Forum>https://github.com/Greite</Forum>
+</Maintainer>

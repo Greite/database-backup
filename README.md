@@ -49,6 +49,30 @@ services:
 - `latest` — Latest stable version
 - `v1.0.0` — Tagged release version (semantic versioning: `v1.0.0`, `1.0`, `1`)
 
+### Unraid (Community Applications)
+
+This image ships with an Unraid template (`database-backup.xml`) and is published on the [Community Applications](https://forums.unraid.net/topic/38582-plug-in-community-applications/) store.
+
+**Install via Community Applications:**
+
+1. Open the **Apps** tab in your Unraid web UI
+2. Search for `database-backup`
+3. Click **Install** and adjust the paths:
+   - **Backups Storage** — host path that will receive the dumps (default `/mnt/user/appdata/database-backup/backups`)
+   - **Configuration File** — host path to your `backups.conf` (default `/mnt/user/appdata/database-backup/backups.conf`); copy [`backups.conf.example`](backups.conf.example) there first and edit it
+   - **Timezone** — IANA timezone name (default `Europe/Paris`)
+4. Click **Apply**
+
+**Manual install (without Community Applications):**
+
+In the Unraid web UI go to **Docker → Add Container**, set the **Template URL** to:
+
+```
+https://raw.githubusercontent.com/Greite/database-backup/main/database-backup.xml
+```
+
+Then load the template and follow the same steps as above.
+
 ## Project Structure
 
 ```
@@ -57,6 +81,8 @@ services:
 ├── compose.yml                 # Example with test databases
 ├── backups.conf                # Backup configuration
 ├── backups.conf.example        # Configuration template
+├── database-backup.xml         # Unraid Community Applications template
+├── ca_profile.xml              # Unraid CA maintainer profile
 ├── GITHUB_SETUP.md             # GitHub Actions setup guide
 ├── .github/
 │   └── workflows/
