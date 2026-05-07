@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/images/lockup-horizontal.svg" alt="database/backup" width="420">
+  <img src="public/images/lockup-horizontal.png" alt="database/backup" width="420">
 </p>
 
 Lightweight Docker image based on Debian Slim to automate PostgreSQL, MariaDB/MySQL, and MongoDB database backups via cron.
