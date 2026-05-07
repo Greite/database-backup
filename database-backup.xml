@@ -33,7 +33,7 @@ See the project README for full configuration syntax and examples.</Overview>
   <Category>Backup: Tools: Status:Stable</Category>
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/Greite/database-backup/main/database-backup.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/Greite/database-backup/main/database-backup-icon.png</Icon>
+  <Icon>https://raw.githubusercontent.com/Greite/database-backup/main/public/images/mark.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <CPUset/>
