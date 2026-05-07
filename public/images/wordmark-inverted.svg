@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 80" width="540" height="80" fill="none">
+  <title>database/backup — wordmark inverted (for dark backgrounds)</title>
+  <defs>
+    <style type="text/css">
+      @import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@500&amp;display=swap');
+      .wm { font-family: 'Azeret Mono', ui-monospace, monospace; font-weight: 500; font-size: 64px; letter-spacing: -2.6px; }
+      .wm-paper { fill: #F2EBDD; }
+      .wm-sep { fill: #B8451F; }
+    </style>
+  </defs>
+  <text x="0" y="60" class="wm wm-paper">database<tspan class="wm-sep">/</tspan>backup</text>
+</svg>
