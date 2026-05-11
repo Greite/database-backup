@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<CommunityApplications>
-  <Profile>
-    Database Backup is a self-hosted Docker image that automates PostgreSQL (12-18), MariaDB/MySQL, and MongoDB dumps via cron. It dynamically installs only the database clients you need at startup, compresses dumps with gzip, rotates old backups based on a per-job retention policy, and ships a built-in healthcheck verifying connectivity to every configured database. Multi-architecture (amd64, arm64) and auto-rebuilt on base image security updates. Source-available under the MIT license. Bug reports and pull requests welcome on GitHub.
-  </Profile>
-  <Icon>https://raw.githubusercontent.com/Greite/database-backup/main/public/images/mark.png</Icon>
-  <WebPage>https://github.com/Greite/database-backup</WebPage>
-</CommunityApplications>

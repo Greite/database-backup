@@ -51,7 +51,7 @@ services:
 
 ### Unraid (Community Applications)
 
-This image ships with an Unraid template (`database-backup.xml`) and is published on the [Community Applications](https://forums.unraid.net/topic/38582-plug-in-community-applications/) store.
+An Unraid template for this image is maintained in the [Greite/unraid-templates](https://github.com/Greite/unraid-templates) repository and is published on the [Community Applications](https://forums.unraid.net/topic/38582-plug-in-community-applications/) store.
 
 **Install via Community Applications:**
 
@@ -68,7 +68,7 @@ This image ships with an Unraid template (`database-backup.xml`) and is publishe
 In the Unraid web UI go to **Docker → Add Container**, set the **Template URL** to:
 
 ```
-https://raw.githubusercontent.com/Greite/database-backup/main/database-backup.xml
+https://raw.githubusercontent.com/Greite/unraid-templates/main/database-backup/database-backup.xml
 ```
 
 Then load the template and follow the same steps as above.
@@ -81,8 +81,6 @@ Then load the template and follow the same steps as above.
 ├── compose.yml                 # Example with test databases
 ├── backups.conf                # Backup configuration
 ├── backups.conf.example        # Configuration template
-├── database-backup.xml         # Unraid Community Applications template
-├── ca_profile.xml              # Unraid CA maintainer profile
 ├── GITHUB_SETUP.md             # GitHub Actions setup guide
 ├── .github/
 │   └── workflows/
