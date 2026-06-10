@@ -228,7 +228,7 @@ Expected base image: **~110–130 MB** (vs 223 MB measured for v1). Startup no l
 
 ## CI and Release
 
-- GitHub Actions: `golangci-lint` + unit tests on every push; integration tests + multi-arch build (amd64, arm64) on PRs and releases. Adapt the existing `docker-build.yml`; keep `base-image-check.yml` (auto-rebuild on debian updates).
+- GitHub Actions: `gofmt` (check mode, fails on unformatted files), `go vet`, `golangci-lint` + unit tests on every push; integration tests + multi-arch build (amd64, arm64) on PRs and releases. Adapt the existing `docker-build.yml`; keep `base-image-check.yml` (auto-rebuild on debian updates).
 - Versioning: v2 ships as `v2.0.0` with image tags `2`, `2.0`, `2.0.0`. The `latest` tag moves to v2 **only when the migration guide is published**. v1 lives on a `v1` branch (security fixes only) with its existing tags untouched.
 - Docs: rewritten README (YAML format, subcommands), migration guide with the v1→v2 field table, new `backups.yml.example` replacing `backups.conf.example`.
 
