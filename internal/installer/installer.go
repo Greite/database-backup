@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"runtime"
 	"sort"
+	"time"
 
 	"github.com/Greite/database-backup/internal/config"
 )
@@ -124,7 +125,8 @@ func installMongoTools() error {
 	defer os.Remove(tmp.Name())
 	defer tmp.Close()
 
-	resp, err := http.Get(url) //nolint:noctx
+	client := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := client.Get(url)
 	if err != nil {
 		return err
 	}
