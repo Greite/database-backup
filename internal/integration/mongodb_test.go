@@ -46,7 +46,7 @@ func TestMongoDBBackupAndHealthcheck(t *testing.T) {
 	host, _ := mg.Host(ctx)
 	port, _ := mg.MappedPort(ctx, "27017/tcp")
 	job := config.Job{Name: "events", Type: "mongodb", Host: host,
-		Port: int(port.Num()), Database: "events", RetentionDays: 7}
+		Port: int(port.Num()), Database: "events", RetentionDays: intPtr(7)}
 
 	// runBackup gunzips the outer layer; the result is a tar stream.
 	raw := runBackup(t, job)

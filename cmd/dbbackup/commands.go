@@ -13,6 +13,7 @@ import (
 	"github.com/Greite/database-backup/internal/dumper"
 	"github.com/Greite/database-backup/internal/healthcheck"
 	"github.com/Greite/database-backup/internal/migrate"
+	"github.com/Greite/database-backup/internal/privileges"
 )
 
 const (
@@ -117,6 +118,18 @@ func cmdBackup(args []string) int {
 		fmt.Fprintln(os.Stderr, "backup: --job <name> is required")
 		return 2
 	}
+
+	// docker exec enters as root; re-exec unprivileged so manual backups
+	// don't leave root-owned files that break scheduled runs.
+	// DB clients are already installed by the long-running run process
+	// in the same container, so no installer step is needed here.
+	if privileges.NeedsDrop() {
+		if err := privileges.DropAndReexec(backupRoot); err != nil {
+			fmt.Fprintln(os.Stderr, "privilege drop:", err)
+			return 1
+		}
+	}
+
 	cfg, err := loadConfig(*cfgPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

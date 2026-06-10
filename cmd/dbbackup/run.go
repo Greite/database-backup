@@ -55,7 +55,7 @@ func cmdRun(args []string) int {
 			return 1
 		}
 		log.Printf("scheduled %s backup of %q (%s, retention %d days)",
-			job.Type, job.Database, job.Schedule, job.RetentionDays)
+			job.Type, job.Database, job.Schedule, job.RetentionDaysValue())
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)

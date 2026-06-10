@@ -14,6 +14,8 @@ import (
 	"github.com/Greite/database-backup/internal/dumper"
 )
 
+func intPtr(v int) *int { return &v }
+
 // runBackup executes one job against a live container and returns the
 // decompressed dump bytes.
 func runBackup(t *testing.T, job config.Job) []byte {

@@ -31,7 +31,9 @@ func postgresDSN(j config.Job) string {
 		sslmode = "require"
 	}
 	// Single-quote the password so spaces and special characters survive keyword/value parsing.
-	pw := "'" + strings.ReplaceAll(j.Password, "'", `\'`) + "'"
+	// Escape backslashes first so they are not treated as escape sequences, then escape quotes.
+	pw := strings.ReplaceAll(j.Password, `\`, `\\`)
+	pw = "'" + strings.ReplaceAll(pw, "'", `\'`) + "'"
 	return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=%s",
 		j.Host, j.Port, j.Database, j.User, pw, sslmode)
 }

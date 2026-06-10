@@ -41,7 +41,7 @@ func TestMariaDBBackupAndHealthcheck(t *testing.T) {
 	}
 
 	job := config.Job{Name: "shop", Type: "mariadb", Host: host,
-		Port: int(port.Num()), Database: "shop", User: "u", Password: "pw", RetentionDays: 7}
+		Port: int(port.Num()), Database: "shop", User: "u", Password: "pw", RetentionDays: intPtr(7)}
 
 	dump := string(runBackup(t, job))
 	for _, want := range []string{"CREATE TABLE", "products", "widget"} {

@@ -23,6 +23,15 @@ func TestPostgresDSN(t *testing.T) {
 	if !strings.Contains(postgresDSN(j), "sslmode=prefer") {
 		t.Error("non-TLS jobs should use sslmode=prefer")
 	}
+
+	// Backslash must be escaped before the surrounding quotes, so that
+	// \' is not misread as an escaped quote by the Postgres parser.
+	j2 := config.Job{Type: "postgres", Host: "db", Port: 5432, Database: "app",
+		User: "u", Password: `pa\ss'word`}
+	dsn2 := postgresDSN(j2)
+	if !strings.Contains(dsn2, `password='pa\\ss\'word'`) {
+		t.Errorf("backslash password not escaped correctly in dsn: %q", dsn2)
+	}
 }
 
 func TestMySQLDSN(t *testing.T) {

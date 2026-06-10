@@ -6,7 +6,7 @@ Lightweight Docker image based on Debian Slim to automate PostgreSQL, MariaDB/My
 
 ## Features
 
-- PostgreSQL (versions 12 to 18), MariaDB/MySQL, and MongoDB support
+- PostgreSQL (any client version available in the PGDG repository; default 18), MariaDB/MySQL, and MongoDB support
 - Dynamic client installation at startup (only required tools are installed based on config)
 - Lightweight image (~126 MB): no database clients pre-installed
 - YAML configuration (`backups.yml`) with full validation at startup
@@ -128,7 +128,7 @@ See [`backups.yml.example`](backups.yml.example) for a ready-to-use template.
 | `password_file` | No* | — | Path to a file containing the password (e.g. a Docker secret) |
 | `schedule` | Yes | — | Cron expression (`"0 2 * * *"`) or shorthand (`"@daily"`) |
 | `retention_days` | No | from `defaults` or `7` | Number of days to keep backups |
-| `pg_version` | No | `18` | PostgreSQL client version (12–18); PostgreSQL only |
+| `pg_version` | No | `18` | PostgreSQL client version (any version available in the PGDG repository, default 18); PostgreSQL only |
 | `tls` | No | from `defaults` or `false` | `true` to encrypt the database connection |
 
 *`user` and `password` / `password_file` are required for PostgreSQL and MariaDB. For MongoDB they are optional (omit for unauthenticated dev/test setups).
@@ -262,7 +262,8 @@ See [docs/MIGRATION-V2.md](docs/MIGRATION-V2.md) for the full field mapping and 
 
 ### Backup file structure
 
-Backups are organized by type and database:
+Backups are organized by type and job name (`<type>/<job-name>/`). For configs
+migrated from v1 the job name equals the database name, so the paths look like:
 
 ```
 backups/
@@ -387,7 +388,7 @@ docker exec db-backup dbbackup healthcheck
 
 No database client is pre-installed in the Docker image. At startup the container parses the configuration and installs only the required tools:
 
-- **PostgreSQL**: installs the specific configured versions (12–18)
+- **PostgreSQL**: installs the specific configured version (`pg_version`, any version available in the PGDG repository, default 18)
 - **MariaDB/MySQL**: installs `mariadb-client`
 - **MongoDB**: installs `mongodump` and `mongorestore`
 

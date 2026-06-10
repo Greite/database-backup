@@ -45,13 +45,21 @@ type Job struct {
 	Password      string `yaml:"password,omitempty"`
 	PasswordFile  string `yaml:"password_file,omitempty"`
 	Schedule      string `yaml:"schedule,omitempty"`
-	RetentionDays int    `yaml:"retention_days,omitempty"`
+	RetentionDays *int   `yaml:"retention_days,omitempty"`
 	PGVersion     int    `yaml:"pg_version,omitempty"`
 	TLS           *bool  `yaml:"tls,omitempty"`
 }
 
 // IsTLS reports whether the job requires an encrypted connection.
 func (j Job) IsTLS() bool { return j.TLS != nil && *j.TLS }
+
+// RetentionDaysValue returns the effective retention (0 disables rotation).
+func (j Job) RetentionDaysValue() int {
+	if j.RetentionDays == nil {
+		return DefaultRetentionDays
+	}
+	return *j.RetentionDays
+}
 
 func defaultPort(dbType string) int {
 	switch dbType {
@@ -87,12 +95,13 @@ func applyDefaults(cfg *Config) {
 		if j.Port == 0 {
 			j.Port = defaultPort(j.Type)
 		}
-		if j.RetentionDays == 0 {
+		if j.RetentionDays == nil {
 			if cfg.Defaults.RetentionDays != nil {
-				j.RetentionDays = *cfg.Defaults.RetentionDays
-			} else {
-				j.RetentionDays = DefaultRetentionDays
+				v := *cfg.Defaults.RetentionDays
+				j.RetentionDays = &v
 			}
+			// If neither job nor defaults specifies retention_days,
+			// leave it nil so RetentionDaysValue() returns the built-in default.
 		}
 		if j.TLS == nil {
 			j.TLS = cfg.Defaults.TLS

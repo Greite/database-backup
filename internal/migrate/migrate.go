@@ -76,7 +76,9 @@ func parseLine(line string) (config.Job, error) {
 	if j.Port, err = optInt(f[3], "port"); err != nil {
 		return config.Job{}, err
 	}
-	if j.RetentionDays, err = optInt(f[7], "retention_days"); err != nil {
+	// optInt returns 0 for an empty field; use optIntPtr to preserve the
+	// distinction between "not set" (nil) and explicit "0" (disable rotation).
+	if j.RetentionDays, err = optIntPtr(f[7], "retention_days"); err != nil {
 		return config.Job{}, err
 	}
 	if j.PGVersion, err = optInt(f[8], "pg_version"); err != nil {
@@ -101,6 +103,20 @@ func optInt(s, field string) (int, error) {
 		return 0, fmt.Errorf("%s: %q is not a positive integer", field, s)
 	}
 	return v, nil
+}
+
+// optIntPtr is like optInt but returns nil for an empty field and a pointer
+// for an explicit value (including "0" which disables rotation).
+func optIntPtr(s, field string) (*int, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil || v < 0 {
+		return nil, fmt.Errorf("%s: %q is not a positive integer", field, s)
+	}
+	return &v, nil
 }
 
 // ToYAML renders the converted config as v2 YAML.

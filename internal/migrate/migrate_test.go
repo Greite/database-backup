@@ -21,9 +21,13 @@ func TestConvertProducesJobs(t *testing.T) {
 		t.Fatalf("got %d jobs, want 3", len(cfg.Jobs))
 	}
 	j := cfg.Jobs[0]
+	retention := 0
+	if j.RetentionDays != nil {
+		retention = *j.RetentionDays
+	}
 	if j.Name != "appdb" || j.Type != "postgres" || j.Schedule != "0 2 * * *" ||
 		j.Port != 5432 || j.User != "backup" || j.Password != "S3cret!" ||
-		j.RetentionDays != 14 || j.PGVersion != 17 || !j.IsTLS() {
+		retention != 14 || j.PGVersion != 17 || !j.IsTLS() {
 		t.Errorf("unexpected first job: %+v", j)
 	}
 	if cfg.Jobs[1].Port != 0 {
@@ -50,6 +54,31 @@ func TestConvertReportsInvalidLinesWithNumbers(t *testing.T) {
 	}
 	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "line 2") {
 		t.Errorf("errs = %v, want one error mentioning line 2", errs)
+	}
+}
+
+func TestConvertRetentionNilVsZero(t *testing.T) {
+	// v1 with no retention field → nil (use default at runtime)
+	noRetention := "0 2 * * *|postgres|h|5432|db|u|p|\n"
+	cfg, errs := Convert(strings.NewReader(noRetention))
+	if len(errs) != 0 {
+		t.Fatalf("errs = %v", errs)
+	}
+	if cfg.Jobs[0].RetentionDays != nil {
+		t.Errorf("empty retention_days field should produce nil, got %v", cfg.Jobs[0].RetentionDays)
+	}
+
+	// v1 with explicit "0" → ptr(0) (rotation disabled)
+	zeroRetention := "0 2 * * *|postgres|h|5432|db|u|p|0\n"
+	cfg2, errs2 := Convert(strings.NewReader(zeroRetention))
+	if len(errs2) != 0 {
+		t.Fatalf("errs = %v", errs2)
+	}
+	if cfg2.Jobs[0].RetentionDays == nil {
+		t.Fatal("explicit 0 retention_days should produce *int(0), got nil")
+	}
+	if *cfg2.Jobs[0].RetentionDays != 0 {
+		t.Errorf("*RetentionDays = %d, want 0", *cfg2.Jobs[0].RetentionDays)
 	}
 }
 

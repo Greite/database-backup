@@ -31,8 +31,10 @@ func (f fakeDumper) Dump(ctx context.Context, w io.Writer) error {
 
 func (fakeDumper) Ext() string { return ".sql.gz" }
 
+func intPtr(v int) *int { return &v }
+
 func runnerJob() config.Job {
-	return config.Job{Name: "app", Type: "postgres", Database: "appdb", RetentionDays: 7}
+	return config.Job{Name: "app", Type: "postgres", Database: "appdb", RetentionDays: intPtr(7)}
 }
 
 func TestRunWritesGzippedBackup(t *testing.T) {

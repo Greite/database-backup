@@ -60,7 +60,7 @@ func (j Job) validate() error {
 	if _, err := cron.ParseStandard(j.Schedule); err != nil {
 		return fmt.Errorf("schedule %q: %w", j.Schedule, err)
 	}
-	if j.RetentionDays < 0 {
+	if j.RetentionDays != nil && *j.RetentionDays < 0 {
 		return fmt.Errorf("retention_days must be >= 0")
 	}
 	return nil

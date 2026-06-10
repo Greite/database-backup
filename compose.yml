@@ -27,6 +27,8 @@ services:
       - ./backups:/backups
       # Volume for the configuration file
       - ./backups.yml:/config/backups.yml:ro
+    # Longer than shutdown_grace (5m) so Docker's SIGKILL doesn't arrive before draining.
+    stop_grace_period: 5m30s
     networks:
       - db-network
     depends_on:

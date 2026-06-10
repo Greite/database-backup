@@ -5,10 +5,12 @@ import (
 	"testing"
 )
 
+func intPtr(v int) *int { return &v }
+
 func validJob() Job {
 	return Job{Name: "app", Type: "postgres", Host: "db", Port: 5432,
 		Database: "app", User: "u", Password: "p", Schedule: "0 2 * * *",
-		RetentionDays: 7, PGVersion: 18}
+		RetentionDays: intPtr(7), PGVersion: 18}
 }
 
 func TestValidateAcceptsValidConfig(t *testing.T) {
@@ -46,7 +48,7 @@ func TestValidateRejectsBadInput(t *testing.T) {
 		{"passphrase and file", func(c *Config) {
 			c.Encryption = &Encryption{Method: "gpg", Passphrase: "a", PassphraseFile: "/f"}
 		}, "passphrase"},
-		{"negative retention", func(c *Config) { c.Jobs[0].RetentionDays = -1 }, "retention_days"},
+		{"negative retention", func(c *Config) { c.Jobs[0].RetentionDays = intPtr(-1) }, "retention_days"},
 	}
 	for _, tc := range cases {
 		cfg := &Config{Jobs: []Job{validJob()}}

@@ -49,7 +49,7 @@ func TestPostgresBackupAndHealthcheck(t *testing.T) {
 
 	job := config.Job{Name: "appdb", Type: "postgres", Host: host,
 		Port: int(port.Num()), Database: "appdb", User: "u", Password: "pw",
-		PGVersion: 18, RetentionDays: 7}
+		PGVersion: 18, RetentionDays: intPtr(7)}
 
 	dump := string(runBackup(t, job))
 	for _, want := range []string{"CREATE TABLE", "items", "first", "second"} {

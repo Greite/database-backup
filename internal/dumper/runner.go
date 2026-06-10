@@ -50,7 +50,7 @@ func (r Runner) Run(ctx context.Context, job config.Job, d Dumper, enc crypto.En
 
 	// Purge also eventually removes orphan .tmp files from interrupted
 	// runs: the suffix match includes them once they age past retention.
-	deleted, remaining, err := rotation.Purge(dir, d.Ext(), job.RetentionDays, r.Now())
+	deleted, remaining, err := rotation.Purge(dir, d.Ext(), job.RetentionDaysValue(), r.Now())
 	if err != nil {
 		// The backup itself succeeded; report rotation problems without failing the job.
 		log.Printf("job %q: rotation error: %v", job.Name, err)

@@ -35,8 +35,9 @@ Review the output, then mount it at `/config/backups.yml`.
   with a warning). Run `dbbackup validate` to check before deploying.
 - Old backups are no longer rotated when the new backup failed.
 - The container drops to uid 1000 after installing database clients;
-  the container fixes ownership of the `/backups` mount point itself
-  at startup.
+  at startup the container recursively fixes ownership of `/backups`
+  and all subdirectories (including directories created by v1 when it
+  ran as root) so that the unprivileged process can write new backups.
 - Logs go to container stdout (no `/var/log/cron.log`).
 - `mongosh` is no longer downloaded: the healthcheck uses native drivers.
 - Passwords may now contain any character, including the pipe `|`.
