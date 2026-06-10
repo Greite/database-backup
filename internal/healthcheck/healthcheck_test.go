@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	mysql "github.com/go-sql-driver/mysql"
+
 	"github.com/Greite/database-backup/internal/config"
 )
 
@@ -32,6 +34,16 @@ func TestMySQLDSN(t *testing.T) {
 	j.TLS = &tls
 	if !strings.Contains(mysqlDSN(j), "tls=skip-verify") {
 		t.Error("TLS jobs should set tls=skip-verify (parity with v1 --ssl)")
+	}
+
+	j2 := config.Job{Type: "mariadb", Host: "m", Port: 3307, Database: "wp", User: "u", Password: "p/w@x"}
+	dsn := mysqlDSN(j2)
+	parsed, err := mysql.ParseDSN(dsn)
+	if err != nil {
+		t.Fatalf("ParseDSN(%q) = %v", dsn, err)
+	}
+	if parsed.Passwd != "p/w@x" || parsed.DBName != "wp" {
+		t.Errorf("round-trip: passwd=%q db=%q, want p/w@x and wp", parsed.Passwd, parsed.DBName)
 	}
 }
 

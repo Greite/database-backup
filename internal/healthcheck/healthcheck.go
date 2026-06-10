@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	mysql "github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -37,13 +37,18 @@ func postgresDSN(j config.Job) string {
 }
 
 func mysqlDSN(j config.Job) string {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", j.User, j.Password, j.Host, j.Port, j.Database)
+	cfg := mysql.NewConfig()
+	cfg.User = j.User
+	cfg.Passwd = j.Password
+	cfg.Net = "tcp"
+	cfg.Addr = fmt.Sprintf("%s:%d", j.Host, j.Port)
+	cfg.DBName = j.Database
 	if j.IsTLS() {
 		// skip-verify mirrors mysqldump --ssl (encrypt, no cert check);
 		// see the rationale on postgresDSN.
-		dsn += "?tls=skip-verify"
+		cfg.TLSConfig = "skip-verify"
 	}
-	return dsn
+	return cfg.FormatDSN()
 }
 
 func mongoURI(j config.Job) string {
