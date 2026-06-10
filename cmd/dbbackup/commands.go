@@ -86,14 +86,19 @@ func cmdHealthcheck(args []string) int {
 	}
 	cfg, err := loadConfig(*cfgPath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "UNHEALTHY:", err)
+		fmt.Println("UNHEALTHY:", err)
 		return 1
 	}
-	errs := healthcheck.Check(context.Background(), cfg)
-	for _, e := range errs {
-		fmt.Fprintln(os.Stderr, "FAILED:", e)
+	failed := 0
+	for _, j := range cfg.Jobs {
+		if err := healthcheck.Ping(context.Background(), j); err != nil {
+			fmt.Fprintf(os.Stderr, "FAILED: job %q (%s on %s:%d): %v\n", j.Name, j.Type, j.Host, j.Port, err)
+			failed++
+			continue
+		}
+		fmt.Printf("OK: job %q (%s on %s:%d)\n", j.Name, j.Type, j.Host, j.Port)
 	}
-	if len(errs) > 0 {
+	if failed > 0 {
 		fmt.Println("UNHEALTHY: some database connections failed")
 		return 1
 	}

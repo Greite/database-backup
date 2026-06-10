@@ -95,14 +95,3 @@ func Ping(ctx context.Context, j config.Job) error {
 	}
 	return fmt.Errorf("unknown database type %q", j.Type)
 }
-
-// Check pings every job and returns one error per failing job.
-func Check(ctx context.Context, cfg *config.Config) []error {
-	var errs []error
-	for _, j := range cfg.Jobs {
-		if err := Ping(ctx, j); err != nil {
-			errs = append(errs, fmt.Errorf("job %q (%s on %s:%d): %w", j.Name, j.Type, j.Host, j.Port, err))
-		}
-	}
-	return errs
-}

@@ -46,12 +46,11 @@ func cmdRun(args []string) int {
 	sched := scheduler.New(cfg.ShutdownGrace)
 	for _, j := range cfg.Jobs {
 		job := j // capture
-		err := sched.Add(job.Schedule, func(ctx context.Context) {
+		if err := sched.Add(job.Schedule, func(ctx context.Context) {
 			if err := runJob(ctx, cfg, job); err != nil {
 				log.Printf("ERROR: %v", err)
 			}
-		})
-		if err != nil {
+		}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
