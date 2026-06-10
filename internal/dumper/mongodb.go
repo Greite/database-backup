@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Greite/database-backup/internal/archive"
@@ -82,7 +83,7 @@ func (m mongodb) Dump(ctx context.Context, w io.Writer) error {
 	if err := runTool(ctx, io.Discard, "mongodump", m.args(outDir, configFile), nil); err != nil {
 		return err
 	}
-	if _, err := os.Stat(outDir + "/" + m.job.Database); err != nil {
+	if _, err := os.Stat(filepath.Join(outDir, m.job.Database)); err != nil {
 		return fmt.Errorf("mongodump did not produce a %q directory", m.job.Database)
 	}
 	return archive.TarDir(outDir, w)

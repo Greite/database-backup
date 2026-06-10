@@ -47,6 +47,11 @@ func TestMariaDBCommand(t *testing.T) {
 	if got := strings.Join(d.env(), "\n"); !strings.Contains(got, "MYSQL_PWD=pw") {
 		t.Errorf("env missing MYSQL_PWD: %q", got)
 	}
+	for _, a := range d.args() {
+		if strings.Contains(a, "pw") {
+			t.Errorf("password leaked into argv: %q", a)
+		}
+	}
 }
 
 func TestNewSelectsImplementation(t *testing.T) {
