@@ -28,7 +28,7 @@ type Runner struct {
 func (r Runner) Run(ctx context.Context, job config.Job, d Dumper, enc crypto.Encryptor) (string, error) {
 	dir := filepath.Join(r.BackupRoot, job.Type, job.Name)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", err
+		return "", fmt.Errorf("job %q: %w", job.Name, err)
 	}
 
 	ext := d.Ext()
@@ -45,15 +45,17 @@ func (r Runner) Run(ctx context.Context, job config.Job, d Dumper, enc crypto.En
 	}
 	if err := os.Rename(tmp, final); err != nil {
 		os.Remove(tmp)
-		return "", err
+		return "", fmt.Errorf("job %q: %w", job.Name, err)
 	}
 
+	// Purge also eventually removes orphan .tmp files from interrupted
+	// runs: the suffix match includes them once they age past retention.
 	deleted, remaining, err := rotation.Purge(dir, d.Ext(), job.RetentionDays, r.Now())
 	if err != nil {
 		// The backup itself succeeded; report rotation problems without failing the job.
 		log.Printf("job %q: rotation error: %v", job.Name, err)
 	} else if deleted > 0 {
-		log.Printf("job %q: rotated %d old backup(s), %d remaining", job.Name, deleted, remaining+1)
+		log.Printf("job %q: rotated %d old backup(s), %d remaining", job.Name, deleted, remaining)
 	}
 	return final, nil
 }
