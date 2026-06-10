@@ -97,7 +97,7 @@ type Encryptor interface {
 | Library | Role |
 |---|---|
 | `gopkg.in/yaml.v3` | config parsing |
-| `github.com/robfig/cron/v3` | in-process scheduler (standard 5-field cron expressions) |
+| `github.com/robfig/cron/v3` | in-process scheduler (5-field cron expressions and @daily-style descriptors) |
 | `github.com/ProtonMail/go-crypto` | OpenPGP symmetric encryption (`gpg`-compatible `.gpg` output) |
 | `filippo.io/age` | age encryption (passphrase or X25519 recipients, `.age` output) |
 | `github.com/jackc/pgx/v5` | PostgreSQL ping (healthcheck only) |
@@ -116,6 +116,8 @@ defaults:            # optional, applies to every job unless overridden
   retention_days: 7
   tls: false
 
+shutdown_grace: 5m   # optional, how long in-flight backups may finish on SIGTERM
+
 encryption:          # optional; absent = no encryption
   method: gpg        # "gpg" or "age"
   passphrase_file: /run/secrets/backup_pass
@@ -132,7 +134,7 @@ jobs:
     user: backup_user           # required except mongodb without auth
     password: SecretPassword    # or password_file (Docker secrets friendly)
     # password_file: /run/secrets/pg_pass
-    schedule: "0 2 * * *"       # required, standard cron expression
+    schedule: "0 2 * * *"       # required, 5-field cron or @daily-style descriptor
     retention_days: 14          # optional, default from defaults block
     pg_version: 18              # postgres only, optional, default 18
     tls: false                  # optional
@@ -166,7 +168,7 @@ Logs go to stdout/stderr (standard container logging). No cron log file, no `tai
 external tool (stdout pipe) → gzip writer → [encryptor] → temp file → rename
 ```
 
-- `pg_dump`/`mariadb-dump` stream SQL to stdout; `mongodump` dumps to a temp directory which is streamed as tar. Compression and encryption happen in-process and in-stream: **no intermediate plaintext file ever touches disk**.
+- `pg_dump`/`mariadb-dump` stream SQL to stdout; compression and encryption happen in-process and in-stream, so **no intermediate plaintext SQL file ever touches disk**. MongoDB is the exception: `mongodump --gzip` writes its dump to a 700-mode temp directory first (gzip-compressed BSON, removed after archiving), which is then streamed as tar through the encryptor.
 - Output: `/backups/<type>/<name>/<name>_<YYYYMMDD_HHMMSS>.sql.gz[.gpg|.age]` (`.tar.gz[.gpg|.age]` for MongoDB), written as `<file>.tmp` then renamed on success — no partial file is ever visible under its final name. Files are mode 600, directories 700.
 - Secrets are passed to child processes via environment (`PGPASSWORD`, `MYSQL_PWD`) or a 600 temp config file for `mongodump` — never via argv (visible in `/proc/*/cmdline`).
 - TLS per job: `PGSSLMODE=require`, `--ssl`, `--ssl` (mongodump) as in v1.
