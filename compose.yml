@@ -5,7 +5,7 @@ services:
     container_name: db-backup
     restart: unless-stopped
     # Hardening: no privilege escalation, minimal capabilities
-    # (the ones listed are required by cron and the apt install at startup)
+    # (the ones listed are required by the apt install at startup and the privilege drop)
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -26,7 +26,7 @@ services:
       # Volume to store the backups
       - ./backups:/backups
       # Volume for the configuration file
-      - ./backups.conf:/config/backups.conf:ro
+      - ./backups.yml:/config/backups.yml:ro
     networks:
       - db-network
     depends_on:
