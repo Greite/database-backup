@@ -14,3 +14,11 @@ func TestDispatchNoArgsDefaultsToRun(t *testing.T) {
 		t.Fatalf("commandName(nil) = %q, want \"run\"", got)
 	}
 }
+
+func TestAllCommandsRegistered(t *testing.T) {
+	for _, name := range []string{"run", "healthcheck", "backup", "validate", "migrate"} {
+		if _, ok := commands[name]; !ok {
+			t.Errorf("command %q is not registered", name)
+		}
+	}
+}
