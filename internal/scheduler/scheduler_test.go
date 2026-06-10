@@ -54,3 +54,60 @@ func TestRunWaitsForInFlightJobs(t *testing.T) {
 		t.Error("Run returned before the in-flight job finished")
 	}
 }
+
+func TestJobContextSurvivesStopSignal(t *testing.T) {
+	s := New(2 * time.Second)
+	gotCancelledEarly := make(chan bool, 1)
+	started := make(chan struct{})
+	job := func(ctx context.Context) {
+		close(started)
+		select {
+		case <-ctx.Done():
+			gotCancelledEarly <- true
+		case <-time.After(300 * time.Millisecond):
+			gotCancelledEarly <- false
+		}
+	}
+	if err := s.Add("* * * * *", job); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { s.Run(ctx); close(done) }()
+	go s.trigger(0)
+	<-started
+	cancel() // stop signal arrives while the job is running
+	if <-gotCancelledEarly {
+		t.Error("job context was cancelled at stop-signal time; it must survive until the grace period expires")
+	}
+	<-done
+}
+
+func TestJobContextCancelledWhenGraceExpires(t *testing.T) {
+	s := New(100 * time.Millisecond)
+	cancelled := make(chan struct{})
+	started := make(chan struct{})
+	job := func(ctx context.Context) {
+		close(started)
+		select {
+		case <-ctx.Done():
+			close(cancelled)
+		case <-time.After(5 * time.Second):
+		}
+	}
+	if err := s.Add("* * * * *", job); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { s.Run(ctx); close(done) }()
+	go s.trigger(0)
+	<-started
+	cancel()
+	select {
+	case <-cancelled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("job context was not cancelled after the grace period expired")
+	}
+	<-done
+}
