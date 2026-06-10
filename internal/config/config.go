@@ -17,9 +17,9 @@ const (
 )
 
 type Config struct {
-	Defaults      Defaults      `yaml:"defaults"`
-	ShutdownGrace time.Duration `yaml:"shutdown_grace"`
-	Encryption    *Encryption   `yaml:"encryption"`
+	Defaults      Defaults      `yaml:"defaults,omitempty"`
+	ShutdownGrace time.Duration `yaml:"shutdown_grace,omitempty"`
+	Encryption    *Encryption   `yaml:"encryption,omitempty"`
 	Jobs          []Job         `yaml:"jobs"`
 }
 
@@ -39,15 +39,15 @@ type Job struct {
 	Name          string `yaml:"name"`
 	Type          string `yaml:"type"` // postgres|mariadb|mysql|mongodb
 	Host          string `yaml:"host"`
-	Port          int    `yaml:"port"`
+	Port          int    `yaml:"port,omitempty"`
 	Database      string `yaml:"database"`
-	User          string `yaml:"user"`
-	Password      string `yaml:"password"`
-	PasswordFile  string `yaml:"password_file"`
-	Schedule      string `yaml:"schedule"`
-	RetentionDays int    `yaml:"retention_days"`
-	PGVersion     int    `yaml:"pg_version"`
-	TLS           *bool  `yaml:"tls"`
+	User          string `yaml:"user,omitempty"`
+	Password      string `yaml:"password,omitempty"`
+	PasswordFile  string `yaml:"password_file,omitempty"`
+	Schedule      string `yaml:"schedule,omitempty"`
+	RetentionDays int    `yaml:"retention_days,omitempty"`
+	PGVersion     int    `yaml:"pg_version,omitempty"`
+	TLS           *bool  `yaml:"tls,omitempty"`
 }
 
 // IsTLS reports whether the job requires an encrypted connection.
