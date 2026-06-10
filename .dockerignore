@@ -5,7 +5,6 @@ docs
 public
 *.md
 backups.conf
-backups.conf.example
 backups.yml
 backups.yml.example
 compose.yml

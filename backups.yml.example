@@ -1,0 +1,66 @@
+# Database backup configuration (v2)
+#
+# Mount this file at /config/backups.yml (chmod 600: it contains
+# credentials unless you use password_file everywhere).
+
+# Optional global defaults, overridable per job.
+defaults:
+  retention_days: 7
+  tls: false
+
+# Optional grace period for in-flight backups on container stop.
+# Must be a duration string like "5m", "300s" or "1h" (not a bare number).
+# shutdown_grace: 5m
+
+# Optional at-rest encryption for every backup file.
+# Method "gpg": symmetric OpenPGP, decrypt with `gpg -d file.gpg`.
+# Method "age": passphrase or public-key recipients, decrypt with `age -d`.
+# encryption:
+#   method: gpg
+#   passphrase_file: /run/secrets/backup_passphrase
+# --- or, age public-key mode (container never holds the private key):
+# encryption:
+#   method: age
+#   recipients:
+#     - age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+
+jobs:
+  # PostgreSQL every day at 2 AM, keep 14 days, PostgreSQL 18 client.
+  - name: myapp
+    type: postgres
+    host: postgres-server
+    database: myapp_db
+    user: backup_user
+    password: SecurePassword123
+    schedule: "0 2 * * *"
+    retention_days: 14
+    pg_version: 18
+
+  # MariaDB — password supplied inline here; in production prefer
+  # password_file: /run/secrets/wp_db_password  (Docker secrets)
+  - name: wordpress
+    type: mariadb
+    host: mariadb-server
+    database: wordpress
+    user: wp_backup
+    password: WordPressSecret
+    schedule: "0 3 * * *"
+
+  # MongoDB without authentication (dev/test).
+  - name: events
+    type: mongodb
+    host: mongo-server
+    database: events
+    schedule: "@daily"
+
+  # Remote PostgreSQL over TLS.
+  - name: webapp
+    type: postgres
+    host: pg.example.com
+    database: webapp
+    user: backup_user
+    password: SecurePass
+    schedule: "0 1 * * *"
+    retention_days: 14
+    pg_version: 17
+    tls: true
