@@ -12,6 +12,10 @@ Lightweight Docker image based on Debian Slim to automate PostgreSQL, MariaDB/My
 - Flexible configuration via a simple config file
 - Cron-based backup scheduling
 - Automatic dump compression (gzip)
+- Optional at-rest encryption of backups (GPG symmetric, AES256)
+- Optional TLS for database connections
+- Credentials never exposed on process command lines or in the crontab
+- SHA256-verified MongoDB tool downloads
 - Timestamped backup files
 - Automatic rotation of old backups
 - Multiple simultaneous database support
@@ -103,7 +107,7 @@ Then load the template and follow the same steps as above.
 Each line defines a backup job with pipe-delimited fields:
 
 ```
-CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS|PG_VERSION
+CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS|PG_VERSION|TLS
 ```
 
 **Fields:**
@@ -116,14 +120,18 @@ CRON_SCHEDULE|TYPE|HOST|PORT|DATABASE|USER|PASSWORD|RETENTION_DAYS|PG_VERSION
 | `PORT` | Connection port | No | 5432 / 3306 / 27017 |
 | `DATABASE` | Database name to back up | Yes | — |
 | `USER` | Database user | No* | — |
-| `PASSWORD` | Database password (special characters supported) | No* | — |
+| `PASSWORD` | Database password (special characters supported, except `\|`) | No* | — |
 | `RETENTION_DAYS` | Number of days to keep backups | No | 7 |
 | `PG_VERSION` | PostgreSQL client version (12–18), PostgreSQL only | No | 18 |
+| `TLS` | `true` to encrypt the database connection | No | disabled |
 
 *Required for PostgreSQL/MariaDB; optional for MongoDB without authentication.
 
+**Field validation:**
+`HOST`, `DATABASE`, and `USER` only accept the characters `[A-Za-z0-9._-]`. Every field is strictly validated at startup; invalid lines are skipped with a warning. This prevents command injection in the generated cron jobs and path traversal in the backup directory.
+
 **Password handling:**
-Passwords with special characters (`!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, etc.) are fully supported. The system automatically escapes all special characters — no manual quoting needed in the config file.
+Passwords with special characters (`!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, etc.) are fully supported — no manual quoting needed in the config file. The only unsupported character is the pipe (`|`), which is the field separator.
 
 **Examples:**
 
@@ -148,6 +156,10 @@ Passwords with special characters (`!`, `@`, `#`, `$`, `%`, `^`, `&`, `*`, etc.)
 
 # Password with special characters
 0 4 * * *|postgres|pg-prod|5432|webapp|admin|ZxirfRuipZPHPc^#V#HFpCpRyrQ!zG5W|14|18
+
+# Remote server over TLS (PG_VERSION left empty for non-PostgreSQL types)
+0 1 * * *|mariadb|db.example.com|3306|analytics|readonly|secret|30||true
+0 1 * * *|postgres|pg.example.com|5432|webapp|backup_user|SecureP@ss|14|17|true
 
 # MongoDB with authentication
 0 5 * * *|mongodb|mongo-prod|27017|ecommerce|dbadmin|SecureM0ng0!|14
@@ -266,6 +278,8 @@ backups/
 
 ### Restore a backup
 
+> If at-rest encryption is enabled, first decrypt the `.gpg` file (see [At-rest encryption](#at-rest-encryption)).
+
 **PostgreSQL:**
 
 ```bash
@@ -299,30 +313,18 @@ rm -rf /tmp/mongo_restore
 
 ### Trigger a manual backup
 
-You can run a backup manually without waiting for cron:
+At startup, the container generates one job definition file per configured backup in `/etc/backup-jobs/` (root-only, mode 600). Credentials are read from these files instead of being passed on the command line, so they never appear in `ps` output or `/proc/*/cmdline`.
 
-**PostgreSQL 18:**
+List the configured jobs:
+
 ```bash
-docker exec db-backup /scripts/backup.sh \
-  postgres db-server 5432 myapp_db postgres postgres_password 14 18
+docker exec db-backup grep -H "^DATABASE=" /etc/backup-jobs/job-*.env
 ```
 
-**PostgreSQL 15 (or other version):**
-```bash
-docker exec db-backup /scripts/backup.sh \
-  postgres db-server 5432 myapp_db postgres postgres_password 14 15
-```
+Run a backup manually without waiting for cron:
 
-**MariaDB:**
 ```bash
-docker exec db-backup /scripts/backup.sh \
-  mariadb mariadb-db 3306 wordpress wp_user wp_password 7
-```
-
-**MongoDB:**
-```bash
-docker exec db-backup /scripts/backup.sh \
-  mongodb mongodb-db 27017 myapp admin mongo_password 7
+docker exec db-backup /scripts/backup.sh /etc/backup-jobs/job-1.env
 ```
 
 ## Security
@@ -330,17 +332,44 @@ docker exec db-backup /scripts/backup.sh \
 ### Password handling
 
 **Special character support:**
-The system automatically handles complex passwords containing all types of special characters: `!@#$%^&*()-_+=`, spaces, and Unicode characters.
+The system automatically handles complex passwords containing all types of special characters: `!@#$%^&*()-_+=`, spaces, and Unicode characters. The only exception is the pipe (`|`), used as the config field separator.
 
 **How it works:**
-- **PostgreSQL**: uses the `PGPASSWORD` environment variable (recommended secure method)
-- **MariaDB/MySQL**: uses the `MYSQL_PWD` environment variable (avoids command-line exposure)
-- **MongoDB**: uses the connection URI with built-in authentication (password is automatically URL-encoded)
-- Passwords are automatically escaped with `printf %q` for safe passage through the cron system
+- Credentials are written at startup to per-job files in `/etc/backup-jobs/` (root-only, mode 600) and are **never passed on command lines** — `argv` is world-readable through `/proc/*/cmdline`, so nothing sensitive ever appears in `ps aux` or `docker top`
+- The generated crontab (`/etc/cron.d/db-backups`, mode 600) contains no secrets
+- **PostgreSQL**: uses the `PGPASSWORD` environment variable
+- **MariaDB/MySQL**: uses the `MYSQL_PWD` environment variable
+- **MongoDB**: `mongodump` reads the password from a temporary root-only config file; the healthcheck passes credentials to `mongosh` through the environment
+- Backup files and directories are created with `umask 077` (mode 600/700), so dumps are not readable by other users of the host
+
+### TLS connections
+
+Set the 10th config field to `true` to encrypt the connection to a database (`PGSSLMODE=require` for PostgreSQL, `--ssl` for MariaDB/MySQL, `--ssl`/`--tls` for MongoDB). Recommended whenever the database is not on the same private Docker network.
+
+### At-rest encryption
+
+Backups can optionally be encrypted with GPG (symmetric, AES256). Provide a passphrase through one of these environment variables on the container:
+
+```yaml
+services:
+  db-backup:
+    environment:
+      # Recommended: path to a mounted secret file
+      - BACKUP_ENCRYPTION_PASSPHRASE_FILE=/run/secrets/backup_passphrase
+      # Alternative: inline passphrase (visible in `docker inspect`)
+      # - BACKUP_ENCRYPTION_PASSPHRASE=my_passphrase
+```
+
+Encrypted backups get a `.gpg` suffix (`myapp_db_20250131_020000.sql.gz.gpg`). To decrypt:
+
+```bash
+gpg --batch --passphrase-file /path/to/passphrase \
+  --decrypt myapp_db_20250131_020000.sql.gz.gpg > myapp_db_20250131_020000.sql.gz
+```
 
 ### Best practices
 
-1. **File permissions**: Ensure `backups.conf` has restrictive permissions since it contains passwords:
+1. **File permissions**: Ensure `backups.conf` has restrictive permissions since it contains passwords (the container warns at startup if the mounted file is group/other-readable):
 
 ```bash
 chmod 600 backups.conf
@@ -457,13 +486,13 @@ docker exec db-backup ls -la /usr/lib/postgresql/
 docker exec db-backup /usr/lib/postgresql/18/bin/pg_dump --version
 docker exec db-backup /usr/lib/postgresql/18/bin/psql -h postgres-db -U postgres -d myapp_db -c "SELECT 1"
 
-# MariaDB
+# MariaDB (the password is prompted interactively; avoid putting it in the command line)
 docker exec db-backup mysqldump --version
-docker exec db-backup mysql -h mariadb-db -u wp_user -p'wp_password' -e "SELECT 1"
+docker exec -it db-backup mysql -h mariadb-db -u wp_user -p -e "SELECT 1"
 
 # MongoDB
 docker exec db-backup mongodump --version
-docker exec db-backup mongosh "mongodb://admin:mongo_password@mongodb-db:27017/myapp?authSource=admin" --eval "db.runCommand({ping: 1})"
+docker exec db-backup /scripts/healthcheck.sh
 ```
 
 ### Old backups aren't being deleted

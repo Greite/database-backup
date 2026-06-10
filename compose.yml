@@ -1,16 +1,31 @@
 services:
-  # Service de backup automatique
+  # Automatic backup service
   db-backup:
     build: .
     container_name: db-backup
     restart: unless-stopped
+    # Hardening: no privilege escalation, minimal capabilities
+    # (the ones listed are required by cron and the apt install at startup)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
     environment:
-      # Timezone pour les logs et les noms de fichiers de backup
+      # Timezone for the logs and the backup file names
       - TZ=Europe/Paris
+      # Optional at-rest encryption of backups (GPG symmetric AES256):
+      # - BACKUP_ENCRYPTION_PASSPHRASE_FILE=/run/secrets/backup_passphrase
+      #   (or BACKUP_ENCRYPTION_PASSPHRASE=my_passphrase, less recommended)
     volumes:
-      # Volume pour stocker les backups
+      # Volume to store the backups
       - ./backups:/backups
-      # Volume pour le fichier de configuration
+      # Volume for the configuration file
       - ./backups.conf:/config/backups.conf:ro
     networks:
       - db-network
@@ -19,7 +34,9 @@ services:
       - mariadb-db
       - mongodb-db
 
-  # Exemple de base de données PostgreSQL
+  # Example PostgreSQL database
+  # Note: no "ports:" exposed — the backup container reaches the databases
+  # through the internal network. Only publish a port on the host if needed.
   postgres-db:
     image: postgres:16-alpine
     container_name: postgres-db
@@ -27,46 +44,40 @@ services:
     environment:
       POSTGRES_DB: myapp_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_PASSWORD: change_me_postgres
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - db-network
-    ports:
-      - "5432:5432"
 
-  # Exemple de base de données MariaDB
+  # Example MariaDB database
   mariadb-db:
     image: mariadb:11
     container_name: mariadb-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_ROOT_PASSWORD: change_me_root
       MYSQL_DATABASE: wordpress
       MYSQL_USER: wp_user
-      MYSQL_PASSWORD: wp_password
+      MYSQL_PASSWORD: change_me_wp
     volumes:
       - mariadb-data:/var/lib/mysql
     networks:
       - db-network
-    ports:
-      - "3306:3306"
 
-  # Exemple de base de données MongoDB
+  # Example MongoDB database
   mongodb-db:
     image: mongo:7
     container_name: mongodb-db
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: mongo_password
+      MONGO_INITDB_ROOT_PASSWORD: change_me_mongo
       MONGO_INITDB_DATABASE: myapp
     volumes:
       - mongodb-data:/data/db
     networks:
       - db-network
-    ports:
-      - "27017:27017"
 
 volumes:
   postgres-data:

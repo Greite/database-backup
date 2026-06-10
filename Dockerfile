@@ -1,14 +1,23 @@
 FROM debian:trixie-slim
 
-# Versions des outils MongoDB (utilisées pour l'installation dynamique)
-ENV MONGO_TOOLS_VERSION="100.10.0"
-ENV MONGOSH_VERSION="2.3.7"
+# MongoDB tool versions (used for the dynamic installation)
+ENV MONGO_TOOLS_VERSION="100.14.0"
+ENV MONGOSH_VERSION="2.8.3"
 
-# Timezone par défaut (peut être surchargée via variable d'environnement)
+# SHA256 checksums of the MongoDB archives, verified by entrypoint.sh at
+# download time (database-tools: official checksums from release.json;
+# mongosh: GitHub release asset digests, cross-checked against
+# downloads.mongodb.com)
+ENV MONGO_TOOLS_SHA256_X86_64="4104998bda784a0cb16fc2e06d9c21645516d72c4fb481c9b103f1e0a8458fc0"
+ENV MONGO_TOOLS_SHA256_ARM64="ef2945973b7e9c0f95d25dc607d420b0b07c486a675937ac9723b32f56ce718d"
+ENV MONGOSH_SHA256_X64="f3d994c05c889f3c9f72f43cf6b574bc178a2a35f0be9322ab7f7b1aa66efd55"
+ENV MONGOSH_SHA256_ARM64="68b4894acac60bf49902d6342d5ef91782473490e55100b4dc5db2ce1ff01fb2"
+
+# Default timezone (can be overridden via environment variable)
 ENV TZ=UTC
 
-# Installation des dépendances de base uniquement
-# Les clients de bases de données seront installés au démarrage selon la configuration
+# Install only the base dependencies
+# Database clients are installed at startup based on the configuration
 RUN apt-get update && apt-get install -y \
     cron \
     gzip \
@@ -21,38 +30,38 @@ RUN apt-get update && apt-get install -y \
     tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-# Configuration de la timezone (utilise la variable TZ)
+# Configure the timezone (uses the TZ variable)
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Configuration du repository PostgreSQL (les clients seront installés au démarrage selon la config)
+# Configure the PostgreSQL repository (clients are installed at startup based on the config)
 RUN mkdir -p /etc/apt/keyrings && \
     wget --quiet -O /etc/apt/keyrings/postgresql.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
     sh -c 'echo "deb [signed-by=/etc/apt/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
 
-# Création des répertoires de travail
+# Create the working directories
 RUN mkdir -p /backups /scripts /config
 
-# Copie des scripts
+# Copy the scripts
 COPY scripts/backup.sh /scripts/backup.sh
 COPY scripts/entrypoint.sh /scripts/entrypoint.sh
 COPY scripts/healthcheck.sh /scripts/healthcheck.sh
 
-# Rendre les scripts exécutables
+# Make the scripts executable
 RUN chmod +x /scripts/backup.sh /scripts/entrypoint.sh /scripts/healthcheck.sh
 
-# Création d'un fichier de log pour cron
+# Create a log file for cron
 RUN touch /var/log/cron.log
 
-# Volume pour les backups
+# Volume for the backups
 VOLUME ["/backups", "/config"]
 
-# Healthcheck pour vérifier la connectivité aux bases de données
-# start-period augmenté pour permettre l'installation des clients PostgreSQL au démarrage
+# Healthcheck verifying database connectivity
+# start-period increased to allow the PostgreSQL clients to install at startup
 HEALTHCHECK --interval=5m --timeout=30s --start-period=5m --retries=3 \
     CMD ["/scripts/healthcheck.sh"]
 
-# Définir l'entrypoint
+# Set the entrypoint
 ENTRYPOINT ["/scripts/entrypoint.sh"]
 
-# Par défaut, suivre les logs de cron
+# By default, follow the cron logs
 CMD ["tail", "-f", "/var/log/cron.log"]

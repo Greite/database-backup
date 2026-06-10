@@ -1,20 +1,20 @@
 #!/bin/bash
 
-# Script de healthcheck pour vérifier la connectivité aux bases de données
-# Vérifie que le conteneur peut se connecter à toutes les bases configurées
+# Healthcheck script verifying database connectivity
+# Checks that the container can connect to every configured database
 
 set -e
 
 CONFIG_FILE="/config/backups.conf"
 EXIT_CODE=0
 
-# Vérifier que le fichier de configuration existe
+# Check that the configuration file exists
 if [ ! -f "${CONFIG_FILE}" ]; then
     echo "UNHEALTHY: Configuration file not found at ${CONFIG_FILE}"
     exit 1
 fi
 
-# Vérifier que cron est en cours d'exécution
+# Check that cron is running
 if ! pgrep -x "cron" > /dev/null; then
     echo "UNHEALTHY: Cron daemon is not running"
     exit 1
@@ -22,20 +22,20 @@ fi
 
 echo "Healthcheck: Testing database connections..."
 
-# Lire le fichier de configuration et tester les connexions
+# Read the configuration file and test the connections
 while IFS= read -r line || [ -n "$line" ]; do
-    # Ignorer les lignes vides et les commentaires
+    # Skip empty lines and comments
     [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
 
-    # Parser la ligne de configuration
-    IFS='|' read -r CRON_SCHEDULE TYPE HOST PORT DATABASE USER PASSWORD RETENTION_DAYS PG_VERSION <<< "$line"
+    # Parse the configuration line
+    IFS='|' read -r CRON_SCHEDULE TYPE HOST PORT DATABASE USER PASSWORD RETENTION_DAYS PG_VERSION TLS <<< "$line"
 
-    # Valider les champs obligatoires
+    # Validate the required fields
     if [ -z "$TYPE" ] || [ -z "$HOST" ] || [ -z "$DATABASE" ]; then
         continue
     fi
 
-    # Définir les ports par défaut si nécessaire
+    # Set the default ports when needed
     if [ -z "$PORT" ]; then
         case "$TYPE" in
             postgres)
@@ -53,16 +53,19 @@ while IFS= read -r line || [ -n "$line" ]; do
         esac
     fi
 
-    # Pour PostgreSQL, définir la version par défaut
+    # For PostgreSQL, set the default version
     if [ "$TYPE" = "postgres" ]; then
         PG_VERSION=${PG_VERSION:-18}
     fi
 
-    # Tester la connexion selon le type
+    # Test the connection according to the type
     echo "  Testing ${TYPE} connection to ${HOST}:${PORT} (database: ${DATABASE})..."
 
     if [ "${TYPE}" = "postgres" ]; then
         export PGPASSWORD="${PASSWORD}"
+        if [ "${TLS}" = "true" ]; then
+            export PGSSLMODE=require
+        fi
         PG_BIN_PATH="/usr/lib/postgresql/${PG_VERSION}/bin"
 
         if ! timeout 5 "${PG_BIN_PATH}/psql" -h "${HOST}" -p "${PORT}" -U "${USER}" -d "${DATABASE}" -c "SELECT 1" > /dev/null 2>&1; then
@@ -71,12 +74,16 @@ while IFS= read -r line || [ -n "$line" ]; do
         else
             echo "    ✓ OK: PostgreSQL ${PG_VERSION} connection successful"
         fi
-        unset PGPASSWORD
+        unset PGPASSWORD PGSSLMODE
 
     elif [ "${TYPE}" = "mariadb" ] || [ "${TYPE}" = "mysql" ]; then
         export MYSQL_PWD="${PASSWORD}"
+        MYSQL_ARGS=(-h "${HOST}" -P "${PORT}" -u "${USER}")
+        if [ "${TLS}" = "true" ]; then
+            MYSQL_ARGS+=(--ssl)
+        fi
 
-        if ! timeout 5 mysql -h "${HOST}" -P "${PORT}" -u "${USER}" -e "SELECT 1" > /dev/null 2>&1; then
+        if ! timeout 5 mysql "${MYSQL_ARGS[@]}" -e "SELECT 1" > /dev/null 2>&1; then
             echo "    ✗ FAILED: Cannot connect to MariaDB/MySQL database on ${HOST}:${PORT}"
             EXIT_CODE=1
         else
@@ -85,14 +92,23 @@ while IFS= read -r line || [ -n "$line" ]; do
         unset MYSQL_PWD
 
     elif [ "${TYPE}" = "mongodb" ]; then
-        # Construire l'URI MongoDB
-        if [ -n "${USER}" ] && [ -n "${PASSWORD}" ]; then
-            MONGODB_URI="mongodb://${USER}:${PASSWORD}@${HOST}:${PORT}/${DATABASE}?authSource=admin"
-        else
-            MONGODB_URI="mongodb://${HOST}:${PORT}/${DATABASE}"
+        MONGOSH_ARGS=(--host "${HOST}" --port "${PORT}" --quiet)
+        if [ "${TLS}" = "true" ]; then
+            MONGOSH_ARGS+=(--tls)
         fi
 
-        if ! timeout 5 mongosh "${MONGODB_URI}" --quiet --eval "db.runCommand({ping: 1})" > /dev/null 2>&1; then
+        # Credentials are passed through the environment and read by the
+        # --eval code: they never appear in /proc/*/cmdline
+        if [ -n "${USER}" ] && [ -n "${PASSWORD}" ]; then
+            MONGOSH_EVAL='db.getSiblingDB("admin").auth(process.env.MONGOSH_USER, process.env.MONGOSH_PWD); db.adminCommand({ping: 1})'
+            MONGOSH_OK=true
+            MONGOSH_USER="${USER}" MONGOSH_PWD="${PASSWORD}" timeout 5 mongosh "${MONGOSH_ARGS[@]}" --eval "${MONGOSH_EVAL}" > /dev/null 2>&1 || MONGOSH_OK=false
+        else
+            MONGOSH_OK=true
+            timeout 5 mongosh "${MONGOSH_ARGS[@]}" --eval "db.runCommand({ping: 1})" > /dev/null 2>&1 || MONGOSH_OK=false
+        fi
+
+        if [ "${MONGOSH_OK}" = "false" ]; then
             echo "    ✗ FAILED: Cannot connect to MongoDB database ${DATABASE} on ${HOST}:${PORT}"
             EXIT_CODE=1
         else

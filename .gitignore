@@ -1,7 +1,7 @@
 # Backups
 backups/
 
-# Configuration avec mots de passe
+# Configuration containing passwords
 backups.conf
 
 # Logs

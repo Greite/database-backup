@@ -37,11 +37,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Tags sémantiques pour les releases (v1.0.0, v1.0, v1)
+            # Semantic tags for releases (v1.0.0, v1.0, v1)
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            # Tag 'latest' pour les tags semver
+            # 'latest' tag for semver tags
             type=raw,value=latest
 
       - name: Build and push Docker image
