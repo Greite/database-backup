@@ -29,8 +29,9 @@ type Scheduler struct {
 // New creates a scheduler; grace bounds how long Run waits for
 // in-flight jobs after the context is cancelled.
 func New(grace time.Duration) *Scheduler {
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 	return &Scheduler{
-		cron:  cron.New(),
+		cron:  cron.New(cron.WithParser(parser)),
 		grace: grace,
 		ctx:   context.Background(), // safe default until Run assigns one
 	}
@@ -39,13 +40,15 @@ func New(grace time.Duration) *Scheduler {
 // Add registers fn under a cron schedule (5-field or @daily-style).
 // Returns an error if the schedule expression is invalid.
 func (s *Scheduler) Add(schedule string, fn func(ctx context.Context)) error {
+	s.mu.Lock()
 	idx := len(s.jobs)
 	s.jobs = append(s.jobs, fn)
+	s.mu.Unlock()
 	_, err := s.cron.AddFunc(schedule, func() { s.trigger(idx) })
 	return err
 }
 
-// trigger runs job idx now, tracked by the WaitGroup. Exported for tests.
+// trigger runs job idx now, tracked by the WaitGroup. Called by cron and from package tests.
 func (s *Scheduler) trigger(idx int) {
 	s.mu.RLock()
 	ctx := s.ctx
@@ -57,7 +60,8 @@ func (s *Scheduler) trigger(idx int) {
 }
 
 // Run starts the cron loop and blocks until ctx is cancelled, then
-// waits up to the grace period for running jobs.
+// waits up to the grace period for running jobs. Jobs still running when the
+// grace period expires are abandoned (they keep the cancelled context).
 func (s *Scheduler) Run(ctx context.Context) {
 	s.mu.Lock()
 	s.ctx = ctx
