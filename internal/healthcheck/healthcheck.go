@@ -21,6 +21,11 @@ import (
 const pingTimeout = 5 * time.Second
 
 func postgresDSN(j config.Job) string {
+	// tls: true encrypts the connection without certificate verification,
+	// deliberately matching what the dump tools do (PGSSLMODE=require,
+	// mysqldump --ssl): the healthcheck must not fail on self-signed
+	// deployments where backups succeed. Certificate verification may
+	// come later as an explicit per-job option.
 	sslmode := "prefer"
 	if j.IsTLS() {
 		sslmode = "require"
@@ -34,6 +39,8 @@ func postgresDSN(j config.Job) string {
 func mysqlDSN(j config.Job) string {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", j.User, j.Password, j.Host, j.Port, j.Database)
 	if j.IsTLS() {
+		// skip-verify mirrors mysqldump --ssl (encrypt, no cert check);
+		// see the rationale on postgresDSN.
 		dsn += "?tls=skip-verify"
 	}
 	return dsn
