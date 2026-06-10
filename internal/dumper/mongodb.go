@@ -57,10 +57,10 @@ func (m mongodb) writePasswordConfig(dir string) (path string, cleanup func(), e
 		err = cerr
 	}
 	if err != nil {
-		os.Remove(f.Name())
+		_ = os.Remove(f.Name())
 		return "", nil, err
 	}
-	return f.Name(), func() { os.Remove(f.Name()) }, nil
+	return f.Name(), func() { _ = os.Remove(f.Name()) }, nil
 }
 
 func (m mongodb) Dump(ctx context.Context, w io.Writer) error {
@@ -68,7 +68,7 @@ func (m mongodb) Dump(ctx context.Context, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 
 	configFile := ""
 	if m.job.User != "" && m.job.Password != "" {

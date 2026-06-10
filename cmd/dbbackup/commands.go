@@ -159,7 +159,7 @@ func cmdMigrate(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	cfg, errs := migrate.Convert(f)
 	for _, e := range errs {
 		fmt.Fprintln(os.Stderr, "skipped:", e)
@@ -169,7 +169,7 @@ func cmdMigrate(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	os.Stdout.Write(out)
+	_, _ = os.Stdout.Write(out)
 	if len(errs) > 0 {
 		return 1
 	}

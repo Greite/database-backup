@@ -40,11 +40,11 @@ func (r Runner) Run(ctx context.Context, job config.Job, d Dumper, enc crypto.En
 	tmp := final + ".tmp"
 
 	if err := r.writeBackup(ctx, d, enc, tmp); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return "", fmt.Errorf("job %q: %w", job.Name, err)
 	}
 	if err := os.Rename(tmp, final); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return "", fmt.Errorf("job %q: %w", job.Name, err)
 	}
 
@@ -65,7 +65,7 @@ func (r Runner) writeBackup(ctx context.Context, d Dumper, enc crypto.Encryptor,
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Build the write chain: dump -> gzip -> [encrypt] -> file.
 	var sink = io.Writer(f)

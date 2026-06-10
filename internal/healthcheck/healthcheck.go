@@ -78,21 +78,21 @@ func Ping(ctx context.Context, j config.Job) error {
 		if err != nil {
 			return err
 		}
-		defer conn.Close(ctx)
+		defer func() { _ = conn.Close(ctx) }()
 		return conn.Ping(ctx)
 	case "mariadb", "mysql":
 		db, err := sql.Open("mysql", mysqlDSN(j))
 		if err != nil {
 			return err
 		}
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 		return db.PingContext(ctx)
 	case "mongodb":
 		client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI(j)))
 		if err != nil {
 			return err
 		}
-		defer client.Disconnect(ctx)
+		defer func() { _ = client.Disconnect(ctx) }()
 		return client.Ping(ctx, nil)
 	}
 	return fmt.Errorf("unknown database type %q", j.Type)

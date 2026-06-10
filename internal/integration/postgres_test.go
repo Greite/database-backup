@@ -30,7 +30,7 @@ func TestPostgresBackupAndHealthcheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer testcontainers.TerminateContainer(pg)
+	defer func() { _ = testcontainers.TerminateContainer(pg) }()
 
 	host, _ := pg.Host(ctx)
 	port, _ := pg.MappedPort(ctx, "5432/tcp")
@@ -42,7 +42,7 @@ func TestPostgresBackupAndHealthcheck(t *testing.T) {
 	}
 	_, err = conn.Exec(ctx, `CREATE TABLE items (id int PRIMARY KEY, label text);
 		INSERT INTO items VALUES (1, 'first'), (2, 'second');`)
-	conn.Close(ctx)
+	_ = conn.Close(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

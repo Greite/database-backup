@@ -19,9 +19,7 @@ type Scheduler struct {
 	wg    sync.WaitGroup
 	jobs  []func(ctx context.Context)
 
-	// mu guards ctx so that trigger calls that race with Run's setCtx
-	// assignment (possible in tests via the test-hook trigger path)
-	// are safe under -race.
+	// mu guards ctx so that trigger calls that race with Run are safe under -race.
 	mu  sync.RWMutex
 	ctx context.Context
 
@@ -47,13 +45,6 @@ func New(grace time.Duration) *Scheduler {
 		ctx:        jobCtx,
 		cancelJobs: cancelJobs,
 	}
-}
-
-// setCtx replaces the context handed to new job invocations.
-func (s *Scheduler) setCtx(ctx context.Context) {
-	s.mu.Lock()
-	s.ctx = ctx
-	s.mu.Unlock()
 }
 
 // Add registers fn under a cron schedule (5-field or @daily-style).

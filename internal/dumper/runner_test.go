@@ -54,7 +54,7 @@ func TestRunWritesGzippedBackup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	zr, err := gzip.NewReader(f)
 	if err != nil {
 		t.Fatal(err)
@@ -90,9 +90,13 @@ func TestRunFailureLeavesNoFileAndSkipsRotation(t *testing.T) {
 	}
 	// An expired backup that must survive because the new run fails.
 	oldFile := filepath.Join(dir, "app_20250101_020000.sql.gz")
-	os.WriteFile(oldFile, []byte("old"), 0o600)
+	if err := os.WriteFile(oldFile, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	past := time.Now().Add(-30 * 24 * time.Hour)
-	os.Chtimes(oldFile, past, past)
+	if err := os.Chtimes(oldFile, past, past); err != nil {
+		t.Fatal(err)
+	}
 
 	r := Runner{BackupRoot: root, Now: time.Now}
 	_, err := r.Run(context.Background(), runnerJob(), fakeDumper{err: errors.New("boom")}, nil)
@@ -111,11 +115,17 @@ func TestRunFailureLeavesNoFileAndSkipsRotation(t *testing.T) {
 func TestRunRotatesAfterSuccess(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "postgres", "app")
-	os.MkdirAll(dir, 0o700)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	oldFile := filepath.Join(dir, "app_20250101_020000.sql.gz")
-	os.WriteFile(oldFile, []byte("old"), 0o600)
+	if err := os.WriteFile(oldFile, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	past := time.Now().Add(-30 * 24 * time.Hour)
-	os.Chtimes(oldFile, past, past)
+	if err := os.Chtimes(oldFile, past, past); err != nil {
+		t.Fatal(err)
+	}
 
 	r := Runner{BackupRoot: root, Now: time.Now}
 	if _, err := r.Run(context.Background(), runnerJob(), fakeDumper{content: "x"}, nil); err != nil {

@@ -28,7 +28,7 @@ func TestMariaDBBackupAndHealthcheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer testcontainers.TerminateContainer(mdb)
+	defer func() { _ = testcontainers.TerminateContainer(mdb) }()
 
 	host, _ := mdb.Host(ctx)
 	port, _ := mdb.MappedPort(ctx, "3306/tcp")

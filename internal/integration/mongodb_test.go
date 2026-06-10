@@ -30,7 +30,7 @@ func TestMongoDBBackupAndHealthcheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer testcontainers.TerminateContainer(mg)
+	defer func() { _ = testcontainers.TerminateContainer(mg) }()
 
 	uri, _ := mg.ConnectionString(ctx)
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
@@ -41,7 +41,7 @@ func TestMongoDBBackupAndHealthcheck(t *testing.T) {
 		InsertOne(ctx, bson.M{"page": "home"}); err != nil {
 		t.Fatal(err)
 	}
-	client.Disconnect(ctx)
+	_ = client.Disconnect(ctx)
 
 	host, _ := mg.Host(ctx)
 	port, _ := mg.MappedPort(ctx, "27017/tcp")
