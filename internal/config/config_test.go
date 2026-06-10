@@ -110,6 +110,39 @@ jobs:
 	}
 }
 
+// TestParseRetentionZeroWithDefaultsBlock pins the precedence rule:
+// an explicit retention_days: 0 on a job must not be overridden by the
+// defaults block (job ptr(0) + defaults 30 → 0, rotation disabled).
+func TestParseRetentionZeroWithDefaultsBlock(t *testing.T) {
+	y := `
+defaults:
+  retention_days: 30
+jobs:
+  - name: noop
+    type: postgres
+    host: db
+    database: noop
+    user: u
+    password: p
+    schedule: "@daily"
+    retention_days: 0
+`
+	cfg, err := Parse(strings.NewReader(y))
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := cfg.Jobs[0]
+	if j.RetentionDays == nil {
+		t.Fatal("RetentionDays must be a non-nil pointer when explicitly set to 0 in YAML")
+	}
+	if *j.RetentionDays != 0 {
+		t.Errorf("*RetentionDays = %d, want 0 (defaults block must not overwrite explicit 0)", *j.RetentionDays)
+	}
+	if j.RetentionDaysValue() != 0 {
+		t.Errorf("RetentionDaysValue() = %d, want 0 (rotation must be disabled)", j.RetentionDaysValue())
+	}
+}
+
 func TestParseRejectsUnknownFields(t *testing.T) {
 	if _, err := Parse(strings.NewReader("jobs:\n  - nme: typo\n")); err == nil {
 		t.Fatal("want error on unknown field, got nil")
