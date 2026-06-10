@@ -75,25 +75,32 @@ func (e *Encryption) validate() error {
 		if len(e.Recipients) > 0 {
 			return fmt.Errorf("encryption: recipients is only valid with method \"age\"")
 		}
+		if e.Passphrase == "" && e.PassphraseFile == "" {
+			return fmt.Errorf("encryption: method \"gpg\" requires passphrase or passphrase_file")
+		}
+		if e.Passphrase != "" && e.PassphraseFile != "" {
+			return fmt.Errorf("encryption: passphrase and passphrase_file are mutually exclusive")
+		}
+		return nil
 	case "age":
+		set := 0
+		if e.Passphrase != "" {
+			set++
+		}
+		if e.PassphraseFile != "" {
+			set++
+		}
+		if len(e.Recipients) > 0 {
+			set++
+		}
+		if set == 0 {
+			return fmt.Errorf("encryption: method \"age\" requires passphrase, passphrase_file or recipients")
+		}
+		if set > 1 {
+			return fmt.Errorf("encryption: passphrase, passphrase_file and recipients are mutually exclusive")
+		}
+		return nil
 	default:
 		return fmt.Errorf("encryption: method %q is not \"gpg\" or \"age\"", e.Method)
 	}
-	set := 0
-	if e.Passphrase != "" {
-		set++
-	}
-	if e.PassphraseFile != "" {
-		set++
-	}
-	if len(e.Recipients) > 0 {
-		set++
-	}
-	if set == 0 {
-		return fmt.Errorf("encryption: one of passphrase, passphrase_file or recipients is required")
-	}
-	if set > 1 {
-		return fmt.Errorf("encryption: passphrase, passphrase_file and recipients are mutually exclusive")
-	}
-	return nil
 }

@@ -46,6 +46,7 @@ func TestValidateRejectsBadInput(t *testing.T) {
 		{"passphrase and file", func(c *Config) {
 			c.Encryption = &Encryption{Method: "gpg", Passphrase: "a", PassphraseFile: "/f"}
 		}, "passphrase"},
+		{"negative retention", func(c *Config) { c.Jobs[0].RetentionDays = -1 }, "retention_days"},
 	}
 	for _, tc := range cases {
 		cfg := &Config{Jobs: []Job{validJob()}}
@@ -73,5 +74,15 @@ func TestValidateMongoWithoutAuthIsOK(t *testing.T) {
 func TestValidateRequiresAtLeastOneJob(t *testing.T) {
 	if err := (&Config{}).Validate(); err == nil {
 		t.Fatal("want error for empty jobs, got nil")
+	}
+}
+
+func TestValidateAcceptsAgeRecipients(t *testing.T) {
+	cfg := &Config{
+		Encryption: &Encryption{Method: "age", Recipients: []string{"age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"}},
+		Jobs:       []Job{validJob()},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() = %v, want nil", err)
 	}
 }
