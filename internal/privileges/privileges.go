@@ -20,6 +20,11 @@ import (
 // the unprivileged child cleanly. Without this the child would be
 // orphaned when the parent exits on a signal.
 func DropAndReexec(backupRoot string) error {
+	// Defence in depth: never re-exec when already dropped.
+	if !NeedsDrop() {
+		return nil
+	}
+
 	if err := os.Chown(backupRoot, UID, GID); err != nil {
 		return fmt.Errorf("chown %s: %w", backupRoot, err)
 	}
@@ -53,8 +58,19 @@ func DropAndReexec(backupRoot string) error {
 
 	if err := cmd.Wait(); err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
-			os.Exit(ee.ExitCode())
+			code := ee.ExitCode()
+			if code == -1 {
+				// Child was killed by a signal: follow the 128+signum
+				// convention so orchestrators interpret it correctly.
+				if ws, ok := ee.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+					code = 128 + int(ws.Signal())
+				} else {
+					code = 255
+				}
+			}
+			os.Exit(code)
 		}
+		signal.Stop(sigs)
 		return err
 	}
 	os.Exit(0)
