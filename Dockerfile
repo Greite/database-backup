@@ -1,67 +1,45 @@
+# syntax=docker/dockerfile:1
+
+FROM golang:1.25 AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd/ cmd/
+COPY internal/ internal/
+# Static binary; tzdata is embedded so the TZ env var works without
+# the Debian tzdata package.
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -tags timetzdata \
+    -o /dbbackup ./cmd/dbbackup
+
 FROM debian:trixie-slim
 
-# MongoDB tool versions (used for the dynamic installation)
-ENV MONGO_TOOLS_VERSION="100.14.0"
-ENV MONGOSH_VERSION="2.8.3"
-
-# SHA256 checksums of the MongoDB archives, verified by entrypoint.sh at
-# download time (database-tools: official checksums from release.json;
-# mongosh: GitHub release asset digests, cross-checked against
-# downloads.mongodb.com)
-ENV MONGO_TOOLS_SHA256_X86_64="4104998bda784a0cb16fc2e06d9c21645516d72c4fb481c9b103f1e0a8458fc0"
-ENV MONGO_TOOLS_SHA256_ARM64="ef2945973b7e9c0f95d25dc607d420b0b07c486a675937ac9723b32f56ce718d"
-ENV MONGOSH_SHA256_X64="f3d994c05c889f3c9f72f43cf6b574bc178a2a35f0be9322ab7f7b1aa66efd55"
-ENV MONGOSH_SHA256_ARM64="68b4894acac60bf49902d6342d5ef91782473490e55100b4dc5db2ce1ff01fb2"
-
-# Default timezone (can be overridden via environment variable)
-ENV TZ=UTC
-
-# Install only the base dependencies
-# Database clients are installed at startup based on the configuration
-RUN apt-get update && apt-get install -y \
-    cron \
-    gzip \
-    wget \
-    curl \
+# apt stays available: database clients are installed at startup based
+# on the configuration, so the base image ships none of them.
+# The PostgreSQL APT repository is preconfigured (clients install at startup);
+# the release codename comes from os-release at build time.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    gnupg \
-    lsb-release \
-    procps \
-    tzdata \
+    curl \
+    && mkdir -p /etc/apt/keyrings \
+    && . /etc/os-release \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /etc/apt/keyrings/postgresql.asc \
+    && echo "deb [signed-by=/etc/apt/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get purge -y curl && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure the timezone (uses the TZ variable)
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+# Unprivileged user the process drops to after installing clients.
+# debian:trixie-slim ships backup:34:34 — reassign to uid/gid 1000.
+RUN groupmod -g 1000 backup && usermod -u 1000 -g 1000 backup \
+    && mkdir -p /backups /config \
+    && chown backup:backup /backups
 
-# Configure the PostgreSQL repository (clients are installed at startup based on the config)
-RUN mkdir -p /etc/apt/keyrings && \
-    wget --quiet -O /etc/apt/keyrings/postgresql.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc && \
-    sh -c 'echo "deb [signed-by=/etc/apt/keyrings/postgresql.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+COPY --from=build /dbbackup /usr/local/bin/dbbackup
 
-# Create the working directories
-RUN mkdir -p /backups /scripts /config
-
-# Copy the scripts
-COPY scripts/backup.sh /scripts/backup.sh
-COPY scripts/entrypoint.sh /scripts/entrypoint.sh
-COPY scripts/healthcheck.sh /scripts/healthcheck.sh
-
-# Make the scripts executable
-RUN chmod +x /scripts/backup.sh /scripts/entrypoint.sh /scripts/healthcheck.sh
-
-# Create a log file for cron
-RUN touch /var/log/cron.log
-
-# Volume for the backups
 VOLUME ["/backups", "/config"]
 
-# Healthcheck verifying database connectivity
-# start-period increased to allow the PostgreSQL clients to install at startup
+# start-period allows the startup client installation to finish.
 HEALTHCHECK --interval=5m --timeout=30s --start-period=5m --retries=3 \
-    CMD ["/scripts/healthcheck.sh"]
+    CMD ["/usr/local/bin/dbbackup", "healthcheck"]
 
-# Set the entrypoint
-ENTRYPOINT ["/scripts/entrypoint.sh"]
-
-# By default, follow the cron logs
-CMD ["tail", "-f", "/var/log/cron.log"]
+ENTRYPOINT ["/usr/local/bin/dbbackup"]
+CMD ["run"]

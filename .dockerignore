@@ -1,7 +1,12 @@
-backups/
+.git
+.github
+.claude
+docs
+public
 *.md
-.git/
-.gitignore
-docker-compose.yml
 backups.conf
-backups.conf.example
+backups.yml
+backups.yml.example
+compose.yml
+LICENSE
+dbbackup
