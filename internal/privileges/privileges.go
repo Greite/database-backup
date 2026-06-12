@@ -4,25 +4,11 @@ package privileges
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 )
-
-// chownTree hands the whole backup tree to the unprivileged user.
-// v1 ran as root and left root-owned job directories behind; without
-// this, migrated deployments silently stop producing backups.
-func chownTree(root string) error {
-	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		return os.Chown(path, UID, GID)
-	})
-}
 
 // DropAndReexec chowns the backup root for the target user, then
 // re-executes the current binary (same args) as uid/gid 1000. On
