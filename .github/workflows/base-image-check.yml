@@ -28,7 +28,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.check.outputs.needs-updating == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         if: steps.check.outputs.needs-updating == 'true'
