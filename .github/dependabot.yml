@@ -1,0 +1,25 @@
+# Dependabot covers v2 only: security alerts are computed from the default
+# branch (main), and every entry below targets it implicitly. The deprecated
+# v1 branch is intentionally left out.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go-minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
