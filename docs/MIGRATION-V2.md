@@ -34,7 +34,7 @@ Review the output, then mount it at `/config/backups.yml`.
 - Invalid configuration is now fatal at startup (v1 skipped bad lines
   with a warning). Run `dbbackup validate` to check before deploying.
 - Old backups are no longer rotated when the new backup failed.
-- The container drops to uid 1000 after installing database clients;
+- The container drops to uid 1000 (`PUID`/`PGID` to override) after installing database clients;
   at startup the container recursively fixes ownership of `/backups`
   and all subdirectories (including directories created by v1 when it
   ran as root) so that the unprivileged process can write new backups.

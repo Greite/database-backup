@@ -34,7 +34,6 @@ func cmdRun(args []string) int {
 			fmt.Fprintln(os.Stderr, "installing clients:", err)
 			return 1
 		}
-		log.Printf("dropping privileges to uid %d", privileges.UID)
 		if err := privileges.DropAndReexec(backupRoot); err != nil {
 			fmt.Fprintln(os.Stderr, "privilege drop:", err)
 			return 1

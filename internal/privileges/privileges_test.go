@@ -18,3 +18,23 @@ func TestShouldDrop(t *testing.T) {
 		}
 	}
 }
+
+func TestParseIDs(t *testing.T) {
+	cases := []struct {
+		puid, pgid string
+		uid, gid   int
+		wantErr    bool
+	}{
+		{"", "", 1000, 1000, false},   // defaults: the image's backup user
+		{"99", "100", 99, 100, false}, // Unraid nobody:users
+		{"abc", "", 0, 0, true},       // not a number
+		{"0", "100", 0, 0, true},      // root is never a drop target
+	}
+	for _, tc := range cases {
+		uid, gid, err := parseIDs(tc.puid, tc.pgid)
+		if (err != nil) != tc.wantErr || uid != tc.uid || gid != tc.gid {
+			t.Errorf("parseIDs(%q, %q) = %d, %d, %v; want %d, %d, err=%v",
+				tc.puid, tc.pgid, uid, gid, err, tc.uid, tc.gid, tc.wantErr)
+		}
+	}
+}

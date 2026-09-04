@@ -4,6 +4,7 @@ package privileges
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -11,9 +12,9 @@ import (
 )
 
 // DropAndReexec chowns the backup root for the target user, then
-// re-executes the current binary (same args) as uid/gid 1000. On
-// success it never returns: the parent waits for the child and exits
-// with its code.
+// re-executes the current binary (same args) as the PUID/PGID identity
+// (default 1000:1000). On success it never returns: the parent waits
+// for the child and exits with its code.
 //
 // Signal forwarding: SIGTERM and SIGINT received by the parent are
 // forwarded to the child process so that docker stop / ctrl-c reach
@@ -25,20 +26,25 @@ func DropAndReexec(backupRoot string) error {
 		return nil
 	}
 
-	if err := chownTree(backupRoot); err != nil {
+	uid, gid, err := IDs()
+	if err != nil {
+		return err
+	}
+	if err := chownTreeAs(backupRoot, uid, gid); err != nil {
 		return fmt.Errorf("chown %s: %w", backupRoot, err)
 	}
 	exe, err := os.Executable()
 	if err != nil {
 		return err
 	}
+	log.Printf("dropping privileges to uid=%d gid=%d", uid, gid)
 	cmd := exec.Command(exe, os.Args[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	cmd.Env = append(os.Environ(), droppedEnv+"=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Credential: &syscall.Credential{Uid: UID, Gid: GID},
+		Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)},
 	}
 	if err := cmd.Start(); err != nil {
 		return err

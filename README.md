@@ -15,7 +15,7 @@ Lightweight Docker image based on Debian Slim to automate PostgreSQL, MariaDB/My
 - Optional at-rest encryption: GPG (symmetric OpenPGP) or age (passphrase or public-key recipients)
 - Optional TLS for database connections
 - Credentials never exposed on process command lines
-- Non-root runtime: container drops to uid 1000 after installing clients
+- Non-root runtime: container drops to an unprivileged uid/gid after installing clients (`PUID`/`PGID`, default 1000)
 - Built-in healthcheck using native database drivers (no `mongosh` download)
 - Migration command to convert v1 `backups.conf` to YAML
 - Centralized logging to container stdout
@@ -186,6 +186,16 @@ secrets:
 |---|---|
 | `/config/backups.yml` | YAML configuration file (required) |
 | `/backups` | Directory where backup files are written |
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `TZ` | `UTC` | Timezone for log lines and backup file names (e.g. `Europe/Paris`) |
+| `PUID` | `1000` | UID the scheduler and dumps run as; `/backups` is chowned to it at startup (linuxserver.io-style). Unraid: `99` |
+| `PGID` | `1000` | GID the scheduler and dumps run as. Unraid: `100` |
+| `BACKUP_ENCRYPTION_PASSPHRASE` | - | v1-compatible GPG passphrase, used when no `encryption:` block is present |
+| `BACKUP_ENCRYPTION_PASSPHRASE_FILE` | - | Path to a file containing the passphrase above |
 
 ### Subcommands
 

@@ -19,6 +19,9 @@ services:
     environment:
       # Timezone for the logs and the backup file names
       - TZ=Europe/Paris
+      # uid/gid the scheduler and dumps run as; /backups is chowned to them at startup (Unraid: 99 / 100)
+      # - PUID=1000
+      # - PGID=1000
       # Optional at-rest encryption of backups (GPG symmetric AES256):
       # - BACKUP_ENCRYPTION_PASSPHRASE_FILE=/run/secrets/backup_passphrase
       #   (or BACKUP_ENCRYPTION_PASSPHRASE=my_passphrase, less recommended)

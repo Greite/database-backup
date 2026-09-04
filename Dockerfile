@@ -27,7 +27,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get purge -y curl && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-# Unprivileged user the process drops to after installing clients.
+# Default unprivileged identity the process drops to after installing clients
+# (override at runtime with PUID/PGID; /backups is re-owned at startup).
 # debian:trixie-slim ships backup:34:34 — reassign to uid/gid 1000.
 RUN groupmod -g 1000 backup && usermod -u 1000 -g 1000 backup \
     && mkdir -p /backups /config \
