@@ -98,7 +98,7 @@ Then load the template and follow the same steps as above.
 
 ### Config File (`backups.yml`)
 
-Mount the file at `/config/backups.yml` inside the container. Use `chmod 600` on the host because the file contains credentials (or use `password_file` everywhere).
+Mount the file at `/config/backups.yml` inside the container. Use `chmod 600` on the host because the file contains credentials (or use `password_file` everywhere), and make it owned by the uid the container runs as (`PUID`, default 1000) so it stays readable after the privilege drop.
 
 See [`backups.yml.example`](backups.yml.example) for a ready-to-use template.
 
@@ -192,7 +192,7 @@ secrets:
 | Variable | Default | Description |
 |---|---|---|
 | `TZ` | `UTC` | Timezone for log lines and backup file names (e.g. `Europe/Paris`) |
-| `PUID` | `1000` | UID the scheduler and dumps run as; `/backups` is chowned to it at startup (linuxserver.io-style). Unraid: `99` |
+| `PUID` | `1000` | UID the scheduler and dumps run as; `/backups` is chowned to it at startup (linuxserver.io-style). Unraid: `99`. `backups.yml` must be readable by this uid (it is not chowned) |
 | `PGID` | `1000` | GID the scheduler and dumps run as. Unraid: `100` |
 | `BACKUP_ENCRYPTION_PASSPHRASE` | - | v1-compatible GPG passphrase, used when no `encryption:` block is present |
 | `BACKUP_ENCRYPTION_PASSPHRASE_FILE` | - | Path to a file containing the passphrase above |
