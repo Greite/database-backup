@@ -153,7 +153,7 @@ jobs:
     schedule: "0 3 * * *"
 ```
 
-The dump is `sqlite3 -readonly <path> .dump`, a consistent snapshot taken inside a single read transaction, so it is safe while the application keeps writing. The file must be readable by `PUID`. For a database in WAL mode (Vaultwarden's default) the `-wal` and `-shm` side files must either exist, which they do while the application is running, or be creatable by `PUID` in the same directory; otherwise the job fails with `unable to open database file`. A failed job never leaves a truncated backup behind.
+The dump is `sqlite3 -readonly <path> .dump`, a consistent snapshot taken inside a single read transaction, so it is safe while the application keeps writing. The file must be readable by `PUID`. For a database in WAL mode (Vaultwarden's default) the `-wal` and `-shm` side files must either exist, which they do while the application is running, or be creatable by `PUID` in the same directory; otherwise the job fails (sqlite3 reports `unable to open database file` or `attempt to write a readonly database`). A failed job never leaves a truncated backup behind.
 
 #### Encryption block
 

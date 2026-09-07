@@ -134,7 +134,9 @@ func TestSQLiteDumpFailsWhenDumpRollsBack(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Dump succeeded on a rolled-back dump:\n%s", out.String())
 	}
-	if !strings.Contains(err.Error(), "unable to open database file") {
+	// The exact message differs by platform ("unable to open database
+	// file" on macOS, "attempt to write a readonly database" on Linux).
+	if !strings.Contains(err.Error(), "sql error") {
 		t.Errorf("error %q should carry sqlite3's stderr", err)
 	}
 }
