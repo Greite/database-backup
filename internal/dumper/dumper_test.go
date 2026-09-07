@@ -1,6 +1,11 @@
 package dumper
 
 import (
+	"bytes"
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -55,7 +60,7 @@ func TestMariaDBCommand(t *testing.T) {
 }
 
 func TestNewSelectsImplementation(t *testing.T) {
-	for _, typ := range []string{"postgres", "mariadb", "mysql", "mongodb"} {
+	for _, typ := range []string{"postgres", "mariadb", "mysql", "mongodb", "sqlite"} {
 		j := config.Job{Type: typ, PGVersion: 18}
 		if _, err := New(j); err != nil {
 			t.Errorf("New(%s) error: %v", typ, err)
@@ -71,5 +76,65 @@ func TestExtByType(t *testing.T) {
 	mg, _ := New(config.Job{Type: "mongodb"})
 	if pg.Ext() != ".sql.gz" || mg.Ext() != ".tar.gz" {
 		t.Errorf("Ext: pg=%q mongo=%q, want .sql.gz / .tar.gz", pg.Ext(), mg.Ext())
+	}
+}
+
+func TestSQLiteCommand(t *testing.T) {
+	d := newSQLite(config.Job{Name: "vw", Type: "sqlite", Path: "/sources/vaultwarden/db.sqlite3"})
+	if got, want := strings.Join(d.args(), " "), "-readonly /sources/vaultwarden/db.sqlite3 .dump"; got != want {
+		t.Errorf("args = %q, want %q", got, want)
+	}
+	if d.Ext() != ".sql.gz" {
+		t.Errorf("Ext = %q, want .sql.gz", d.Ext())
+	}
+}
+
+func TestTailKeepsLastBytesAcrossWrites(t *testing.T) {
+	var out bytes.Buffer
+	tw := &tail{w: &out}
+	for _, chunk := range []string{"BEGIN TRANSACTION;\n", "INSERT INTO a VALUES(1);\nCOM", "MIT;\n"} {
+		if _, err := tw.Write([]byte(chunk)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !bytes.HasSuffix(tw.last, []byte("COMMIT;\n")) {
+		t.Errorf("tail = %q, want suffix COMMIT;", tw.last)
+	}
+	if out.Len() != len("BEGIN TRANSACTION;\nINSERT INTO a VALUES(1);\nCOMMIT;\n") {
+		t.Errorf("underlying writer got %d bytes", out.Len())
+	}
+}
+
+// sqlite3 exits 0 when .dump fails and ends the output with
+// "ROLLBACK; -- due to errors" instead of "COMMIT;". A WAL database
+// whose -wal/-shm files are missing and cannot be created (Vaultwarden
+// stopped, read-only mount) is the real-world trigger.
+func TestSQLiteDumpFailsWhenDumpRollsBack(t *testing.T) {
+	if _, err := exec.LookPath("sqlite3"); err != nil {
+		t.Skip("sqlite3 not installed")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	dir := t.TempDir()
+	db := filepath.Join(dir, "db.sqlite3")
+	if out, err := exec.Command("sqlite3", db, "PRAGMA journal_mode=wal; CREATE TABLE a(x); INSERT INTO a VALUES(1);").CombinedOutput(); err != nil {
+		t.Fatalf("seeding: %v (%s)", err, out)
+	}
+	_ = os.Remove(db + "-wal")
+	_ = os.Remove(db + "-shm")
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+
+	d := newSQLite(config.Job{Name: "vw", Type: "sqlite", Path: db})
+	var out bytes.Buffer
+	err := d.Dump(context.Background(), &out)
+	if err == nil {
+		t.Fatalf("Dump succeeded on a rolled-back dump:\n%s", out.String())
+	}
+	if !strings.Contains(err.Error(), "unable to open database file") {
+		t.Errorf("error %q should carry sqlite3's stderr", err)
 	}
 }

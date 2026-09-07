@@ -1,6 +1,9 @@
 package healthcheck
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -65,5 +68,18 @@ func TestMongoURI(t *testing.T) {
 	uri := mongoURI(j)
 	if !strings.Contains(uri, "ad%20min:p%40ss%2Fw@") || !strings.Contains(uri, "authSource=admin") {
 		t.Errorf("uri %q must URL-escape credentials and set authSource", uri)
+	}
+}
+
+func TestPingSQLiteChecksFileIsReadable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "db.sqlite3")
+	if err := os.WriteFile(path, []byte("SQLite format 3\x00"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := Ping(context.Background(), config.Job{Type: "sqlite", Path: path}); err != nil {
+		t.Errorf("Ping(existing file) = %v, want nil", err)
+	}
+	if err := Ping(context.Background(), config.Job{Type: "sqlite", Path: path + ".missing"}); err == nil {
+		t.Error("Ping(missing file) = nil, want error")
 	}
 }

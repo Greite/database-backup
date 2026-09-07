@@ -43,5 +43,6 @@ func (p postgres) Dump(ctx context.Context, w io.Writer) error {
 	if _, err := os.Stat(p.path()); err != nil {
 		return fmt.Errorf("PostgreSQL %d client is not installed (%s)", p.job.PGVersion, p.path())
 	}
-	return runTool(ctx, w, p.path(), p.args(), p.env())
+	_, err := runTool(ctx, w, p.path(), p.args(), p.env())
+	return err
 }

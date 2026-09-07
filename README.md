@@ -2,11 +2,11 @@
   <img src="public/images/lockup-horizontal.png" alt="database/backup" width="420">
 </p>
 
-Lightweight Docker image based on Debian Slim to automate PostgreSQL, MariaDB/MySQL, and MongoDB database backups with a built-in Go scheduler.
+Lightweight Docker image based on Debian Slim to automate PostgreSQL, MariaDB/MySQL, MongoDB and SQLite database backups with a built-in Go scheduler.
 
 ## Features
 
-- PostgreSQL (any client version available in the PGDG repository; default 18), MariaDB/MySQL, and MongoDB support
+- PostgreSQL (any client version available in the PGDG repository; default 18), MariaDB/MySQL, MongoDB and SQLite (file-based, e.g. Vaultwarden) support
 - Dynamic client installation at startup (only required tools are installed based on config)
 - Lightweight image (~126 MB): no database clients pre-installed
 - YAML configuration (`backups.yml`) with full validation at startup
@@ -119,10 +119,11 @@ See [`backups.yml.example`](backups.yml.example) for a ready-to-use template.
 | Field | Required | Default | Description |
 |---|---|---|---|
 | `name` | Yes | — | Unique job identifier (used in log output and directory paths) |
-| `type` | Yes | — | `postgres`, `mariadb`, `mysql`, or `mongodb` |
-| `host` | Yes | — | Database hostname or IP |
+| `type` | Yes | — | `postgres`, `mariadb`, `mysql`, `mongodb`, or `sqlite` |
+| `host` | Yes* | — | Database hostname or IP |
 | `port` | No | 5432 / 3306 / 27017 | Connection port |
-| `database` | Yes | — | Database name to back up |
+| `database` | Yes* | — | Database name to back up |
+| `path` | Yes* | — | Absolute path of the database file inside the container; SQLite only |
 | `user` | No* | — | Database user |
 | `password` | No* | — | Inline password (any character, including `\|`) |
 | `password_file` | No* | — | Path to a file containing the password (e.g. a Docker secret) |
@@ -131,7 +132,28 @@ See [`backups.yml.example`](backups.yml.example) for a ready-to-use template.
 | `pg_version` | No | `18` | PostgreSQL client version (any version available in the PGDG repository, default 18); PostgreSQL only |
 | `tls` | No | from `defaults` or `false` | `true` to encrypt the database connection |
 
-*`user` and `password` / `password_file` are required for PostgreSQL and MariaDB. For MongoDB they are optional (omit for unauthenticated dev/test setups).
+*`user` and `password` / `password_file` are required for PostgreSQL and MariaDB. For MongoDB they are optional (omit for unauthenticated dev/test setups). SQLite jobs take only `path`: `host`, `database` and credentials do not apply.
+
+#### SQLite jobs
+
+SQLite databases are files, so the application's data directory must be mounted into the backup container, read-only is enough:
+
+```yaml
+services:
+  db-backup:
+    volumes:
+      - /srv/vaultwarden/data:/sources/vaultwarden:ro
+```
+
+```yaml
+jobs:
+  - name: vaultwarden
+    type: sqlite
+    path: /sources/vaultwarden/db.sqlite3
+    schedule: "0 3 * * *"
+```
+
+The dump is `sqlite3 -readonly <path> .dump`, a consistent snapshot taken inside a single read transaction, so it is safe while the application keeps writing. The file must be readable by `PUID`. For a database in WAL mode (Vaultwarden's default) the `-wal` and `-shm` side files must either exist, which they do while the application is running, or be creatable by `PUID` in the same directory; otherwise the job fails with `unable to open database file`. A failed job never leaves a truncated backup behind.
 
 #### Encryption block
 
@@ -186,6 +208,7 @@ secrets:
 |---|---|
 | `/config/backups.yml` | YAML configuration file (required) |
 | `/backups` | Directory where backup files are written |
+| any, e.g. `/sources/<app>` | Data directory of an application whose SQLite file is backed up (`:ro` is enough) |
 
 ### Environment variables
 
@@ -286,13 +309,17 @@ backups/
 │   └── wordpress/
 │       ├── wordpress_20250131_030000.sql.gz
 │       └── ...
-└── mongodb/
-    └── events/
-        ├── events_20250131_000000.tar.gz
+├── mongodb/
+│   └── events/
+│       ├── events_20250131_000000.tar.gz
+│       └── ...
+└── sqlite/
+    └── vaultwarden/
+        ├── vaultwarden_20250131_030000.sql.gz
         └── ...
 ```
 
-> **Note:** MongoDB backups use `.tar.gz` format (compressed BSON archive), while PostgreSQL and MariaDB use `.sql.gz` (compressed SQL dump). Encrypted backups get an additional `.gpg` or `.age` suffix.
+> **Note:** MongoDB backups use `.tar.gz` format (compressed BSON archive), while PostgreSQL, MariaDB and SQLite use `.sql.gz` (compressed SQL dump). Encrypted backups get an additional `.gpg` or `.age` suffix.
 
 ### Restore a backup
 
@@ -327,6 +354,14 @@ tar -xzf backups/mongodb/events/events_20250131_000000.tar.gz -C /tmp/mongo_rest
 mongorestore --uri="mongodb://admin:password@localhost:27017/events?authSource=admin" \
   --gzip --drop /tmp/mongo_restore/events
 rm -rf /tmp/mongo_restore
+```
+
+**SQLite:**
+
+```bash
+# Restores into a new file; stop the application before swapping it in.
+gunzip -c backups/sqlite/vaultwarden/vaultwarden_20250131_030000.sql.gz | \
+  sqlite3 db.sqlite3
 ```
 
 ## Security
@@ -401,6 +436,7 @@ No database client is pre-installed in the Docker image. At startup the containe
 - **PostgreSQL**: installs the specific configured version (`pg_version`, any version available in the PGDG repository, default 18)
 - **MariaDB/MySQL**: installs `mariadb-client`
 - **MongoDB**: installs `mongodump` and `mongorestore`
+- **SQLite**: installs `sqlite3`
 
 Internet access is required on first startup. First startup may take an extra 30–90 seconds depending on which clients need to be installed.
 

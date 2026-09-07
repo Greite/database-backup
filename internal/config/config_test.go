@@ -148,3 +148,20 @@ func TestParseRejectsUnknownFields(t *testing.T) {
 		t.Fatal("want error on unknown field, got nil")
 	}
 }
+
+func TestParseSQLiteJob(t *testing.T) {
+	cfg, err := Parse(strings.NewReader(`
+jobs:
+  - name: vaultwarden
+    type: sqlite
+    path: /sources/vaultwarden/db.sqlite3
+    schedule: "@daily"
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := cfg.Jobs[0]
+	if j.Path != "/sources/vaultwarden/db.sqlite3" || j.Port != 0 {
+		t.Errorf("job = %+v, want Path set and Port 0", j)
+	}
+}

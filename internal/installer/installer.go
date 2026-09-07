@@ -33,6 +33,7 @@ type Req struct {
 	PGVersions []int // sorted, deduplicated
 	MariaDB    bool
 	MongoDB    bool
+	SQLite     bool
 }
 
 // Requirements computes which client tools the config needs.
@@ -47,6 +48,8 @@ func Requirements(cfg *config.Config) Req {
 			req.MariaDB = true
 		case "mongodb":
 			req.MongoDB = true
+		case "sqlite":
+			req.SQLite = true
 		}
 	}
 	for v := range pg {
@@ -79,6 +82,11 @@ func Install(req Req) error {
 	if req.MariaDB {
 		if _, err := exec.LookPath("mysqldump"); err != nil {
 			aptPkgs = append(aptPkgs, "mariadb-client")
+		}
+	}
+	if req.SQLite {
+		if _, err := exec.LookPath("sqlite3"); err != nil {
+			aptPkgs = append(aptPkgs, "sqlite3")
 		}
 	}
 	if len(aptPkgs) > 0 {

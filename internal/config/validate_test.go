@@ -88,3 +88,39 @@ func TestValidateAcceptsAgeRecipients(t *testing.T) {
 		t.Fatalf("Validate() = %v, want nil", err)
 	}
 }
+
+func sqliteJob() Job {
+	return Job{Name: "vw", Type: "sqlite", Path: "/sources/vaultwarden/db.sqlite3", Schedule: "0 3 * * *"}
+}
+
+func TestValidateSQLiteNeedsOnlyPath(t *testing.T) {
+	cfg := &Config{Jobs: []Job{sqliteJob()}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() = %v, want nil", err)
+	}
+}
+
+func TestValidateSQLiteRejectsBadPath(t *testing.T) {
+	cases := []struct{ desc, path string }{
+		{"missing path", ""},
+		{"relative path", "data/db.sqlite3"},
+		{"file URI", "file:/data/db.sqlite3?immutable=1"},
+	}
+	for _, tc := range cases {
+		j := sqliteJob()
+		j.Path = tc.path
+		err := (&Config{Jobs: []Job{j}}).Validate()
+		if err == nil || !strings.Contains(err.Error(), "path") {
+			t.Errorf("%s: error %v does not mention path", tc.desc, err)
+		}
+	}
+}
+
+func TestTarget(t *testing.T) {
+	if got, want := validJob().Target(), `"app" on db:5432`; got != want {
+		t.Errorf("network Target() = %q, want %q", got, want)
+	}
+	if got, want := sqliteJob().Target(), "/sources/vaultwarden/db.sqlite3"; got != want {
+		t.Errorf("sqlite Target() = %q, want %q", got, want)
+	}
+}

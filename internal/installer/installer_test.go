@@ -16,13 +16,14 @@ func TestRequirementsDeduplicatesPGVersions(t *testing.T) {
 		{Type: "postgres", PGVersion: 18},
 		{Type: "mariadb"},
 		{Type: "mongodb"},
+		{Type: "sqlite"},
 	}}
 	req := Requirements(cfg)
 	if len(req.PGVersions) != 2 || req.PGVersions[0] != 17 || req.PGVersions[1] != 18 {
 		t.Errorf("PGVersions = %v, want [17 18]", req.PGVersions)
 	}
-	if !req.MariaDB || !req.MongoDB {
-		t.Errorf("req = %+v, want MariaDB and MongoDB true", req)
+	if !req.MariaDB || !req.MongoDB || !req.SQLite {
+		t.Errorf("req = %+v, want MariaDB, MongoDB and SQLite true", req)
 	}
 }
 

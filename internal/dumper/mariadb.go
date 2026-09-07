@@ -31,5 +31,6 @@ func (m mariadb) env() []string {
 }
 
 func (m mariadb) Dump(ctx context.Context, w io.Writer) error {
-	return runTool(ctx, w, "mysqldump", m.args(), m.env())
+	_, err := runTool(ctx, w, "mysqldump", m.args(), m.env())
+	return err
 }

@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -94,6 +95,13 @@ func Ping(ctx context.Context, j config.Job) error {
 		}
 		defer func() { _ = client.Disconnect(ctx) }()
 		return client.Ping(ctx, nil)
+	case "sqlite":
+		// The file is the whole "server": readable means reachable.
+		f, err := os.Open(j.Path)
+		if err != nil {
+			return err
+		}
+		return f.Close()
 	}
 	return fmt.Errorf("unknown database type %q", j.Type)
 }

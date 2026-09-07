@@ -32,20 +32,25 @@ func New(job config.Job) (Dumper, error) {
 		return newMariaDB(job), nil
 	case "mongodb":
 		return newMongoDB(job), nil
+	case "sqlite":
+		return newSQLite(job), nil
 	}
 	return nil, fmt.Errorf("unknown database type %q", job.Type)
 }
 
 // runTool execs the tool, streaming stdout to w. Stderr is captured
-// and included in the returned error so failures are diagnosable.
-func runTool(ctx context.Context, w io.Writer, path string, args, env []string) error {
+// and included in the returned error so failures are diagnosable; it
+// is also returned for tools that report errors without a non-zero exit.
+func runTool(ctx context.Context, w io.Writer, path string, args, env []string) (string, error) {
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Stdout = w
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	cmd.Env = append(os.Environ(), env...)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s: %w (stderr: %s)", filepath.Base(path), err, strings.TrimSpace(stderr.String()))
+	err := cmd.Run()
+	msg := strings.TrimSpace(stderr.String())
+	if err != nil {
+		return msg, fmt.Errorf("%s: %w (stderr: %s)", filepath.Base(path), err, msg)
 	}
-	return nil
+	return msg, nil
 }

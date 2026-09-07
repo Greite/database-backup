@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 
 	"github.com/robfig/cron/v3"
@@ -41,18 +42,18 @@ func (j Job) validate() error {
 		return fmt.Errorf("name must match [A-Za-z0-9._-]+ and not be '.' or '..'")
 	}
 	switch j.Type {
+	case "sqlite":
+		// Absolute paths also rule out "file:" URIs (immutable=1 would
+		// silently ignore the WAL) and option-looking names.
+		if !filepath.IsAbs(j.Path) {
+			return fmt.Errorf("path must be an absolute file path for sqlite")
+		}
 	case "postgres", "mariadb", "mysql", "mongodb":
+		if err := j.validateServer(); err != nil {
+			return err
+		}
 	default:
-		return fmt.Errorf("type %q is not one of postgres|mariadb|mysql|mongodb", j.Type)
-	}
-	if j.Host == "" {
-		return fmt.Errorf("host is required")
-	}
-	if j.Database == "" {
-		return fmt.Errorf("database is required")
-	}
-	if j.Type != "mongodb" && j.User == "" {
-		return fmt.Errorf("user is required for %s", j.Type)
+		return fmt.Errorf("type %q is not one of postgres|mariadb|mysql|mongodb|sqlite", j.Type)
 	}
 	if j.Password != "" && j.PasswordFile != "" {
 		return fmt.Errorf("password and password_file are mutually exclusive")
@@ -62,6 +63,20 @@ func (j Job) validate() error {
 	}
 	if j.RetentionDays != nil && *j.RetentionDays < 0 {
 		return fmt.Errorf("retention_days must be >= 0")
+	}
+	return nil
+}
+
+// validateServer checks the fields only network databases have.
+func (j Job) validateServer() error {
+	if j.Host == "" {
+		return fmt.Errorf("host is required")
+	}
+	if j.Database == "" {
+		return fmt.Errorf("database is required")
+	}
+	if j.Type != "mongodb" && j.User == "" {
+		return fmt.Errorf("user is required for %s", j.Type)
 	}
 	return nil
 }

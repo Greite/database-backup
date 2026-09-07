@@ -80,7 +80,7 @@ func (m mongodb) Dump(ctx context.Context, w io.Writer) error {
 		configFile = path
 	}
 	outDir := tmp + "/dump"
-	if err := runTool(ctx, io.Discard, "mongodump", m.args(outDir, configFile), nil); err != nil {
+	if _, err := runTool(ctx, io.Discard, "mongodump", m.args(outDir, configFile), nil); err != nil {
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(outDir, m.job.Database)); err != nil {

@@ -37,10 +37,11 @@ type Encryption struct {
 
 type Job struct {
 	Name          string `yaml:"name"`
-	Type          string `yaml:"type"` // postgres|mariadb|mysql|mongodb
-	Host          string `yaml:"host"`
+	Type          string `yaml:"type"` // postgres|mariadb|mysql|mongodb|sqlite
+	Host          string `yaml:"host,omitempty"`
 	Port          int    `yaml:"port,omitempty"`
-	Database      string `yaml:"database"`
+	Database      string `yaml:"database,omitempty"`
+	Path          string `yaml:"path,omitempty"` // SQLite only: absolute path of the database file
 	User          string `yaml:"user,omitempty"`
 	Password      string `yaml:"password,omitempty"`
 	PasswordFile  string `yaml:"password_file,omitempty"`
@@ -52,6 +53,15 @@ type Job struct {
 
 // IsTLS reports whether the job requires an encrypted connection.
 func (j Job) IsTLS() bool { return j.TLS != nil && *j.TLS }
+
+// Target describes what the job backs up, for log messages: the file
+// path for SQLite, otherwise the database name and server address.
+func (j Job) Target() string {
+	if j.Type == "sqlite" {
+		return j.Path
+	}
+	return fmt.Sprintf("%q on %s:%d", j.Database, j.Host, j.Port)
+}
 
 // RetentionDaysValue returns the effective retention (0 disables rotation).
 func (j Job) RetentionDaysValue() int {

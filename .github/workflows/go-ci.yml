@@ -41,7 +41,7 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
             | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update
-          sudo apt-get install -y postgresql-client-18 mariadb-client
+          sudo apt-get install -y postgresql-client-18 mariadb-client sqlite3
           wget -q "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.14.0.tgz" -O /tmp/mt.tgz
           sudo tar -xzf /tmp/mt.tgz -C /usr/local/bin --strip-components=2 --wildcards '*/bin/*'
       - name: Integration tests

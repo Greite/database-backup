@@ -93,11 +93,11 @@ func cmdHealthcheck(args []string) int {
 	failed := 0
 	for _, j := range cfg.Jobs {
 		if err := healthcheck.Ping(context.Background(), j); err != nil {
-			fmt.Fprintf(os.Stderr, "FAILED: job %q (%s on %s:%d): %v\n", j.Name, j.Type, j.Host, j.Port, err)
+			fmt.Fprintf(os.Stderr, "FAILED: job %q (%s %s): %v\n", j.Name, j.Type, j.Target(), err)
 			failed++
 			continue
 		}
-		fmt.Printf("OK: job %q (%s on %s:%d)\n", j.Name, j.Type, j.Host, j.Port)
+		fmt.Printf("OK: job %q (%s %s)\n", j.Name, j.Type, j.Target())
 	}
 	if failed > 0 {
 		fmt.Println("UNHEALTHY: some database connections failed")
@@ -187,7 +187,7 @@ func runJob(ctx context.Context, cfg *config.Config, j config.Job) error {
 		return err
 	}
 	r := dumper.Runner{BackupRoot: backupRoot, Now: time.Now}
-	log.Printf("starting backup of %s database %q on %s:%d", j.Type, j.Database, j.Host, j.Port)
+	log.Printf("starting backup of %s %s", j.Type, j.Target())
 	path, err := r.Run(ctx, j, d, enc)
 	if err != nil {
 		return err

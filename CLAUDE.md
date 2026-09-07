@@ -32,5 +32,6 @@ docker compose up -d --build && docker compose logs -f db-backup   # full image 
 - `run` starts as root, installs clients, then re-execs itself as `PUID:PGID` with `DBBACKUP_DROPPED=1`. Root-only work goes before `DropAndReexec`. `backup` (used via `docker exec`) also drops but skips the installer.
 - On macOS `golangci-lint` reports `SA4023` on the two `DropAndReexec` calls: false positive from the `!linux` stub returning a constant error. `GOOS=linux` gives CI's result (CI uses `version: latest`, no `.golangci.yml`).
 - Integration tests skip unless `/usr/lib/postgresql/18/bin/pg_dump` exists; CI runs them only on pull requests, not on push to `main`.
+- `sqlite3 .dump` exits 0 even when it fails (it ends the output with `ROLLBACK; -- due to errors`); the sqlite dumper checks for the `COMMIT;` trailer instead of trusting the exit code.
 - Credentials never go on argv: `PGPASSWORD` / `MYSQL_PWD` env vars, a 0600 `--config` file for mongodump. Keep it that way when adding client flags.
 - Build is `CGO_ENABLED=0` with `-tags timetzdata`: no cgo dependencies, no reliance on system tzdata.

@@ -46,6 +46,13 @@ jobs:
     password: WordPressSecret
     schedule: "0 3 * * *"
 
+  # SQLite file (e.g. Vaultwarden) — mount the application's data
+  # directory into the container, read-only is enough.
+  - name: vaultwarden
+    type: sqlite
+    path: /sources/vaultwarden/db.sqlite3
+    schedule: "0 3 * * *"
+
   # MongoDB without authentication (dev/test).
   - name: events
     type: mongodb
