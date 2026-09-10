@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	filippo.io/age v1.3.2
 	github.com/ProtonMail/go-crypto v1.4.1
-	github.com/go-sql-driver/mysql v1.10.0
+	github.com/go-sql-driver/mysql v1.10.1
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/testcontainers/testcontainers-go v0.44.0
