@@ -16,7 +16,7 @@ func TestDispatchNoArgsDefaultsToRun(t *testing.T) {
 }
 
 func TestAllCommandsRegistered(t *testing.T) {
-	for _, name := range []string{"run", "healthcheck", "backup", "validate", "migrate"} {
+	for _, name := range []string{"run", "healthcheck", "backup", "list", "validate", "migrate"} {
 		if _, ok := commands[name]; !ok {
 			t.Errorf("command %q is not registered", name)
 		}

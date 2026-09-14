@@ -13,7 +13,7 @@ docker compose up -d --build && docker compose logs -f db-backup   # full image 
 
 ## Layout
 
-- `cmd/dbbackup/` — subcommand dispatch (`run` default, `validate`, `backup --job`, `healthcheck`, `migrate`); register new commands in `commands.go` `init()`.
+- `cmd/dbbackup/` — subcommand dispatch (`run` default, `validate`, `backup [--job]`, `list`, `healthcheck`, `migrate`); register new commands in `commands.go` `init()`.
 - `internal/config` — YAML schema, validation, secret resolution (`password_file`, `passphrase_file`).
 - `internal/dumper` — one file per engine plus `runner.go`: dump → gzip → optional encrypt → 0600 temp file → rename → `rotation.Purge`.
 - `internal/installer` — apt/curl install of clients at container start (root phase); MongoDB tools are version- and SHA256-pinned here.

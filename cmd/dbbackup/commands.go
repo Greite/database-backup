@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"text/tabwriter"
 	"time"
 
 	"github.com/Greite/database-backup/internal/config"
@@ -28,6 +29,7 @@ func init() {
 	commands["backup"] = cmdBackup
 	commands["validate"] = cmdValidate
 	commands["migrate"] = cmdMigrate
+	commands["list"] = cmdList
 }
 
 // loadConfig parses, validates and resolves secrets, with the v1
@@ -110,12 +112,8 @@ func cmdHealthcheck(args []string) int {
 func cmdBackup(args []string) int {
 	fs := flag.NewFlagSet("backup", flag.ContinueOnError)
 	cfgPath := fs.String("config", defaultConfigPath, "config file path")
-	jobName := fs.String("job", "", "job name to run (required)")
+	jobName := fs.String("job", "", "job name to run (default: all jobs)")
 	if err := fs.Parse(args); err != nil {
-		return 2
-	}
-	if *jobName == "" {
-		fmt.Fprintln(os.Stderr, "backup: --job <name> is required")
 		return 2
 	}
 
@@ -135,18 +133,46 @@ func cmdBackup(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
+	found, failed := 0, 0
 	for _, j := range cfg.Jobs {
-		if j.Name != *jobName {
+		if *jobName != "" && j.Name != *jobName {
 			continue
 		}
+		found++
 		if err := runJob(context.Background(), cfg, j); err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			return 1
+			failed++
 		}
-		return 0
 	}
-	fmt.Fprintf(os.Stderr, "backup: no job named %q in %s\n", *jobName, *cfgPath)
-	return 1
+	if found == 0 {
+		fmt.Fprintf(os.Stderr, "backup: no job named %q in %s\n", *jobName, *cfgPath)
+		return 1
+	}
+	if failed > 0 {
+		fmt.Fprintf(os.Stderr, "backup: %d of %d job(s) failed\n", failed, found)
+		return 1
+	}
+	return 0
+}
+
+func cmdList(args []string) int {
+	fs := flag.NewFlagSet("list", flag.ContinueOnError)
+	cfgPath := fs.String("config", defaultConfigPath, "config file path")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	cfg, err := loadConfig(*cfgPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "NAME\tTYPE\tTARGET\tSCHEDULE\tRETENTION")
+	for _, j := range cfg.Jobs {
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d days\n", j.Name, j.Type, j.Target(), j.Schedule, j.RetentionDaysValue())
+	}
+	_ = w.Flush()
+	return 0
 }
 
 func cmdMigrate(args []string) int {

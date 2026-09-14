@@ -21,7 +21,7 @@ func dispatch(args []string) int {
 	name := commandName(args)
 	cmd, ok := commands[name]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "unknown command %q (expected run|healthcheck|backup|validate|migrate)\n", name)
+		fmt.Fprintf(os.Stderr, "unknown command %q (expected run|healthcheck|backup|list|validate|migrate)\n", name)
 		return 2
 	}
 	rest := args

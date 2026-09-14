@@ -228,7 +228,8 @@ The container binary (`dbbackup`) supports the following subcommands. When no su
 |---|---|
 | `run` | Load config and start the built-in scheduler (default) |
 | `validate` | Parse and validate the config, then exit; useful in CI |
-| `backup --job <name>` | Run a single named job immediately (use with `docker exec`) |
+| `backup [--job <name>]` | Run one named job, or all jobs when `--job` is omitted (use with `docker exec`) |
+| `list` | Print the configured jobs (name, type, target, schedule, retention) |
 | `healthcheck` | Check connectivity for all configured databases and exit |
 | `migrate [path]` | Convert a v1 pipe-delimited file to YAML and print to stdout |
 
@@ -275,7 +276,9 @@ docker run --rm \
 #### Trigger a manual backup
 
 ```bash
-docker exec db-backup dbbackup backup --job myapp
+docker exec db-backup dbbackup list                 # see the job names
+docker exec db-backup dbbackup backup --job myapp   # one job
+docker exec db-backup dbbackup backup               # all jobs, sequentially
 ```
 
 ## Migrating from v1
